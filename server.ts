@@ -201,6 +201,10 @@ app.put("/api/compromissos/:id", authenticateToken, async (req: any, res) => {
       return res.status(403).json({ error: "Acesso negado: você não é o dono deste compromisso" });
     }
 
+    if (compromisso.status === 'concluido') {
+      return res.status(403).json({ error: "Compromissos concluídos não podem ser editados" });
+    }
+
     const updated = await prisma.compromisso.update({
       where: { id: parseInt(id) },
       data: {

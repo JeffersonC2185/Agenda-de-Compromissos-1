@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import AppointmentForm from './AppointmentForm';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { format, addHours } from 'date-fns';
+import { format, addHours, isToday, isWithinInterval, addMinutes, parseISO, differenceInMinutes } from 'date-fns';
 import api from '@/src/lib/api';
+import { Bell } from 'lucide-react';
 
 import {
   AlertDialog,
@@ -36,6 +37,7 @@ export default function CalendarView() {
   const [pendingAppointmentData, setPendingAppointmentData] = useState<Partial<Compromisso> | null>(null);
   const [isYearModalOpen, setIsYearModalOpen] = useState(false);
   const [currentCalendarYear, setCurrentCalendarYear] = useState(new Date().getFullYear());
+  const [notifiedIds, setNotifiedIds] = useState<Set<number>>(new Set());
   const calendarRef = useRef<FullCalendar>(null);
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
@@ -44,7 +46,8 @@ export default function CalendarView() {
   const fetchCompromissos = async () => {
     try {
       const response = await api.get('/compromissos');
-      const formattedEvents = response.data.map((c: Compromisso) => {
+      const rawData = response.data;
+      const formattedEvents = rawData.map((c: Compromisso) => {
         const isOwner = c.userId === user.id;
         return {
           id: c.id.toString(),
@@ -56,13 +59,54 @@ export default function CalendarView() {
         };
       });
       setEvents(formattedEvents);
+      checkUpcomingAppointments(rawData);
     } catch (error) {
       toast.error('Erro ao carregar compromissos');
     }
   };
 
+  const checkUpcomingAppointments = (appointments: Compromisso[]) => {
+    const now = new Date();
+    const newNotifiedIds = new Set(notifiedIds);
+    let hasNewNotification = false;
+
+    appointments.forEach(c => {
+      if (c.status === 'concluido' || c.userId !== user.id || notifiedIds.has(c.id)) return;
+
+      const appDate = new Date(`${c.data.split('T')[0]}T${c.hora}`);
+      const diffMinutes = differenceInMinutes(appDate, now);
+
+      if (diffMinutes > 0 && diffMinutes <= 60) {
+        toast.info(`Compromisso Próximo: "${c.titulo}" começa em ${diffMinutes} minutos!`, {
+          icon: <Bell className="h-4 w-4 text-blue-500" />,
+          duration: 10000,
+        });
+        newNotifiedIds.add(c.id);
+        hasNewNotification = true;
+      } else if (isToday(appDate) && diffMinutes > 60) {
+        // Only notify about "today" once at the start of the day or when fetched
+        toast(`Lembrete: Você tem "${c.titulo}" hoje às ${c.hora}`, {
+          icon: <CalendarIcon className="h-4 w-4 text-orange-500" />,
+        });
+        newNotifiedIds.add(c.id);
+        hasNewNotification = true;
+      }
+    });
+
+    if (hasNewNotification) {
+      setNotifiedIds(newNotifiedIds);
+    }
+  };
+
   useEffect(() => {
     fetchCompromissos();
+    
+    // Check for upcoming appointments every 5 minutes
+    const interval = setInterval(() => {
+      fetchCompromissos();
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const handleDateClick = (arg: any) => {
@@ -161,6 +205,10 @@ export default function CalendarView() {
   const handleEdit = () => {
     if (currentAppointment?.userId !== user.id) {
       toast.error('Você só pode editar seus próprios compromissos');
+      return;
+    }
+    if (currentAppointment?.status === 'concluido') {
+      toast.error('Compromissos concluídos não podem ser editados');
       return;
     }
     setSelectedAppointment(currentAppointment);
@@ -337,13 +385,15 @@ export default function CalendarView() {
                   <Button variant="outline" size="icon" onClick={() => setIsDeleteDialogOpen(true)}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
-                  <Button variant="outline" size="icon" onClick={handleEdit}>
-                    <Edit className="h-4 w-4" />
-                  </Button>
                   {currentAppointment?.status === 'pendente' && (
-                    <Button onClick={() => handleConcluir(currentAppointment!.id)}>
-                      <CheckCircle className="mr-2 h-4 w-4" /> Concluir
-                    </Button>
+                    <>
+                      <Button variant="outline" size="icon" onClick={handleEdit}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button onClick={() => handleConcluir(currentAppointment!.id)}>
+                        <CheckCircle className="mr-2 h-4 w-4" /> Concluir
+                      </Button>
+                    </>
                   )}
                 </div>
               ) : (

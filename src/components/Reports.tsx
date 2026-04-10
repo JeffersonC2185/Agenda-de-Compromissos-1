@@ -8,7 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Search } from 'lucide-react';
+import { FileText, Search, Download } from 'lucide-react';
+import * as XLSX from 'xlsx';
 
 export default function Reports() {
   const [dataInicio, setDataInicio] = useState(format(new Date(), 'yyyy-MM-01'));
@@ -25,6 +26,23 @@ export default function Reports() {
     } catch (error) {
       console.error('Erro ao buscar relatório');
     }
+  };
+
+  const exportToExcel = () => {
+    const exportData = compromissos.map(c => ({
+      'Data': new Date(c.data).toLocaleDateString('pt-BR'),
+      'Hora': c.hora,
+      'Título': c.titulo,
+      'Descrição': c.descricao || '',
+      'Usuário': c.user?.nome || 'N/A',
+      'Retroativo': c.retroativo ? 'Sim' : 'Não',
+      'Status': c.status === 'concluido' ? 'Concluído' : 'Pendente'
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Relatório");
+    XLSX.writeFile(workbook, `relatorio_compromissos_${dataInicio}_a_${dataFim}.xlsx`);
   };
 
   useEffect(() => {
@@ -58,6 +76,9 @@ export default function Reports() {
           </div>
           <Button onClick={fetchRelatorio}>
             <Search className="mr-2 h-4 w-4" /> Filtrar
+          </Button>
+          <Button variant="outline" onClick={exportToExcel} disabled={compromissos.length === 0}>
+            <Download className="mr-2 h-4 w-4" /> Exportar XLSX
           </Button>
         </div>
 
