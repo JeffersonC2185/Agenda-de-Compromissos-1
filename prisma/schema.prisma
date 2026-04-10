@@ -1,0 +1,26 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model Compromisso {
+  id        Int      @id @default(autoincrement())
+  titulo    String   @db.VarChar(255)
+  descricao String?  @db.Text
+  data      DateTime @db.Date
+  hora      String   @db.VarChar(10) // HH:mm
+  status    Status   @default(pendente)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("compromissos")
+}
+
+enum Status {
+  pendente
+  concluido
+}
