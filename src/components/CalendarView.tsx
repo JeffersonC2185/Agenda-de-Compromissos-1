@@ -6,14 +6,14 @@ import interactionPlugin from '@fullcalendar/interaction';
 import { Compromisso } from '@/src/types';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, CheckCircle, Trash2, Edit, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, CheckCircle, Trash2, Edit, Clock, Calendar as CalendarIcon, ChevronLeft, ChevronRight, Cake, CalendarDays, Bell, AlertCircle } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import AppointmentForm from './AppointmentForm';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
-import { format, addHours, isToday, isWithinInterval, addMinutes, parseISO, differenceInMinutes } from 'date-fns';
+import { format, isToday, differenceInMinutes } from 'date-fns';
 import api from '@/src/lib/api';
-import { Bell } from 'lucide-react';
+import axios from 'axios';
 
 import {
   AlertDialog,
@@ -28,6 +28,9 @@ import {
 
 export default function CalendarView() {
   const [events, setEvents] = useState<any[]>([]);
+  const [appointmentEvents, setAppointmentEvents] = useState<any[]>([]);
+  const [birthdayEvents, setBirthdayEvents] = useState<any[]>([]);
+  const [holidayEvents, setHolidayEvents] = useState<any[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Partial<Compromisso> | null>(null);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
@@ -38,30 +41,90 @@ export default function CalendarView() {
   const [isYearModalOpen, setIsYearModalOpen] = useState(false);
   const [currentCalendarYear, setCurrentCalendarYear] = useState(new Date().getFullYear());
   const [notifiedIds, setNotifiedIds] = useState<Set<number>>(new Set());
+  const [birthdays, setBirthdays] = useState<any[]>([]);
   const calendarRef = useRef<FullCalendar>(null);
   
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = user.role === 'administrador';
 
+  useEffect(() => {
+    setEvents([...appointmentEvents, ...birthdayEvents, ...holidayEvents]);
+  }, [appointmentEvents, birthdayEvents, holidayEvents]);
+
+  const fetchHolidays = async (startYear: number) => {
+    try {
+      const yearsToFetch = [startYear, startYear + 1, startYear + 2];
+      const holidayPromises = yearsToFetch.map(year => 
+        axios.get(`https://date.nager.at/api/v3/PublicHolidays/${year}/BR`)
+      );
+      
+      const responses = await Promise.all(holidayPromises);
+      const allFormattedHolidays = responses.flatMap(response => 
+        response.data.map((h: any) => ({
+          id: `holiday-${h.date}-${h.name}`,
+          title: `🇧🇷 ${h.localName}`,
+          start: h.date,
+          allDay: true,
+          backgroundColor: '#94a3b8',
+          borderColor: '#94a3b8',
+          display: 'block',
+          editable: false,
+          extendedProps: { isHoliday: true }
+        }))
+      );
+      setHolidayEvents(allFormattedHolidays);
+    } catch (error) {
+      console.error('Erro ao buscar feriados:', error);
+    }
+  };
+
   const fetchCompromissos = async () => {
     try {
-      const response = await api.get('/compromissos');
-      const rawData = response.data;
+      const [compRes, birthRes] = await Promise.all([
+        api.get('/compromissos'),
+        api.get('/birthdays')
+      ]);
+      
+      const rawData = compRes.data;
+      const birthData = birthRes.data;
+      
       const formattedEvents = rawData.map((c: Compromisso) => {
         const isOwner = c.userId === user.id;
         return {
-          id: c.id.toString(),
+          id: `comp-${c.id}`,
           title: isAdmin && !isOwner ? `[${c.user?.nome}] ${c.titulo}` : c.titulo,
           start: `${c.data.split('T')[0]}T${c.hora}`,
           backgroundColor: c.status === 'concluido' ? '#10b981' : (isOwner ? '#3b82f6' : '#94a3b8'),
           borderColor: c.status === 'concluido' ? '#10b981' : (isOwner ? '#3b82f6' : '#94a3b8'),
-          extendedProps: c,
+          extendedProps: { ...c, isBirthday: false },
         };
       });
-      setEvents(formattedEvents);
+
+      // Add birthdays as events
+      const formattedBirthdays = birthData.flatMap((u: any) => {
+        const birthDate = new Date(u.dataNascimento);
+        const month = birthDate.getUTCMonth();
+        const day = birthDate.getUTCDate();
+        
+        // Show birthday for current year, previous and next to handle view transitions
+        const currentYear = new Date().getFullYear();
+        return [currentYear - 1, currentYear, currentYear + 1].map(year => ({
+          id: `birth-${u.id}-${year}`,
+          title: `🎂 Aniversário: ${u.nome}`,
+          start: `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`,
+          allDay: true,
+          backgroundColor: '#f472b6',
+          borderColor: '#f472b6',
+          display: 'block',
+          extendedProps: { isBirthday: true, userName: u.nome }
+        }));
+      });
+
+      setAppointmentEvents(formattedEvents);
+      setBirthdayEvents(formattedBirthdays);
       checkUpcomingAppointments(rawData);
     } catch (error) {
-      toast.error('Erro ao carregar compromissos');
+      toast.error('Erro ao carregar dados');
     }
   };
 
@@ -80,6 +143,10 @@ export default function CalendarView() {
         toast.info(`Compromisso Próximo: "${c.titulo}" começa em ${diffMinutes} minutos!`, {
           icon: <Bell className="h-4 w-4 text-blue-500" />,
           duration: 10000,
+          action: {
+            label: 'Fechar',
+            onClick: () => {}
+          }
         });
         newNotifiedIds.add(c.id);
         hasNewNotification = true;
@@ -87,6 +154,10 @@ export default function CalendarView() {
         // Only notify about "today" once at the start of the day or when fetched
         toast(`Lembrete: Você tem "${c.titulo}" hoje às ${c.hora}`, {
           icon: <CalendarIcon className="h-4 w-4 text-orange-500" />,
+          action: {
+            label: 'Fechar',
+            onClick: () => {}
+          }
         });
         newNotifiedIds.add(c.id);
         hasNewNotification = true;
@@ -100,6 +171,7 @@ export default function CalendarView() {
 
   useEffect(() => {
     fetchCompromissos();
+    fetchHolidays(new Date().getFullYear());
     
     // Check for upcoming appointments every 5 minutes
     const interval = setInterval(() => {
@@ -128,6 +200,15 @@ export default function CalendarView() {
   };
 
   const handleEventClick = (arg: any) => {
+    if (arg.event.extendedProps.isHoliday) {
+      return;
+    }
+    if (arg.event.extendedProps.isBirthday) {
+      toast.info(`Hoje é aniversário de ${arg.event.extendedProps.userName}! 🎂`, {
+        icon: <Cake className="h-4 w-4 text-pink-500" />
+      });
+      return;
+    }
     setCurrentAppointment(arg.event.extendedProps);
     setIsViewModalOpen(true);
   };
@@ -232,12 +313,19 @@ export default function CalendarView() {
   const years = Array.from({ length: 21 }, (_, i) => new Date().getFullYear() - 10 + i);
 
   const handleDatesSet = (arg: any) => {
-    setCurrentCalendarYear(arg.view.currentStart.getFullYear());
-    // Update the custom title button text
+    const newYear = arg.view.currentStart.getFullYear();
+    if (newYear !== currentCalendarYear) {
+      setCurrentCalendarYear(newYear);
+      // We still fetch a 3-year window starting from the current view year
+      // to ensure the user always has context for the "next two years" from where they are
+      fetchHolidays(newYear);
+    }
+    // Update the custom title button text and capitalize
     setTimeout(() => {
       const titleBtn = document.querySelector('.fc-calendarTitle-button');
       if (titleBtn) {
-        titleBtn.textContent = arg.view.title;
+        const title = arg.view.title;
+        titleBtn.textContent = title.charAt(0).toUpperCase() + title.slice(1);
       }
     }, 0);
   };
@@ -251,9 +339,9 @@ export default function CalendarView() {
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
             headerToolbar={{
-              left: 'today,dayGridMonth,timeGridWeek,timeGridDay',
-              center: 'prev,calendarTitle,next',
-              right: 'novoCompromisso'
+              left: 'today prev,next',
+              center: 'calendarTitle',
+              right: 'dayGridMonth,timeGridWeek,timeGridDay novoCompromisso'
             }}
             customButtons={{
               novoCompromisso: {
@@ -282,6 +370,7 @@ export default function CalendarView() {
               }
             }}
             locale="pt-br"
+            allDayText="dia inteiro"
             buttonText={{
               today: 'Hoje',
               month: 'Mês',
@@ -297,9 +386,10 @@ export default function CalendarView() {
         </div>
 
         <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle className="pr-8">
+              <DialogTitle className="flex items-center gap-2 pr-8">
+                <CalendarDays className="h-5 w-5 text-blue-600" />
                 {selectedAppointment && selectedAppointment.id !== 0 ? 'Editar Compromisso' : 'Novo Compromisso'}
               </DialogTitle>
             </DialogHeader>
@@ -315,7 +405,9 @@ export default function CalendarView() {
         <Dialog open={isYearModalOpen} onOpenChange={setIsYearModalOpen}>
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
-              <DialogTitle>Selecionar Ano</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <CalendarIcon className="h-5 w-5 text-blue-600" /> Selecionar Ano
+              </DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-3 gap-2 py-4">
               {years.map((year) => (
@@ -334,11 +426,14 @@ export default function CalendarView() {
 
         {/* View Details Modal */}
         <Dialog open={isViewModalOpen} onOpenChange={setIsViewModalOpen}>
-          <DialogContent>
+          <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex flex-col gap-1 pr-8">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate">{currentAppointment?.titulo}</span>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 truncate min-w-0 flex-1">
+                    <Clock className="h-5 w-5 text-blue-600 shrink-0" />
+                    <span className="truncate block">{currentAppointment?.titulo}</span>
+                  </div>
                   <Badge 
                     variant="outline" 
                     className={`shrink-0 ${
@@ -351,7 +446,7 @@ export default function CalendarView() {
                   </Badge>
                 </div>
                 {isAdmin && !isOwner && (
-                  <span className="text-xs font-normal text-muted-foreground">
+                  <span className="text-xs font-normal text-muted-foreground break-all">
                     Usuário: {currentAppointment?.user?.nome} ({currentAppointment?.user?.email})
                   </span>
                 )}
@@ -359,45 +454,50 @@ export default function CalendarView() {
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-muted-foreground">Data</p>
-                  <p>{currentAppointment && new Date(currentAppointment.data).toLocaleDateString('pt-BR')}</p>
+                  <p className="truncate">
+                    {currentAppointment && (() => {
+                      const dateParts = currentAppointment.data.split('T')[0].split('-');
+                      return `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+                    })()}
+                  </p>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-muted-foreground">Hora</p>
-                  <p>{currentAppointment?.hora}</p>
+                  <p className="truncate">{currentAppointment?.hora}</p>
                 </div>
               </div>
               {currentAppointment?.retroativo && (
                 <div className="p-2 bg-amber-50 border border-amber-200 rounded-md">
                   <p className="text-xs text-amber-700 font-medium flex items-center gap-1">
-                    <Clock className="h-3 w-3" /> Criado de forma retroativa
+                    <Clock className="h-3 w-3 shrink-0" /> Criado de forma retroativa
                   </p>
                 </div>
               )}
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm font-medium text-muted-foreground">Descrição</p>
-                <p className="text-sm">{currentAppointment?.descricao || 'Sem descrição'}</p>
+                <p className="text-sm break-words whitespace-pre-wrap">{currentAppointment?.descricao || 'Sem descrição'}</p>
               </div>
               
               {isOwner ? (
-                <div className="flex justify-end gap-2 pt-4">
-                  <Button variant="outline" size="icon" onClick={() => setIsDeleteDialogOpen(true)}>
+                <div className="flex flex-wrap justify-end gap-2 pt-4">
+                  <Button variant="outline" size="icon" onClick={() => setIsDeleteDialogOpen(true)} className="shrink-0">
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                   {currentAppointment?.status === 'pendente' && (
                     <>
-                      <Button variant="outline" size="icon" onClick={handleEdit}>
+                      <Button variant="outline" size="icon" onClick={handleEdit} className="shrink-0">
                         <Edit className="h-4 w-4" />
                       </Button>
-                      <Button onClick={() => handleConcluir(currentAppointment!.id)}>
+                      <Button onClick={() => handleConcluir(currentAppointment!.id)} className="flex-1 sm:flex-none">
                         <CheckCircle className="mr-2 h-4 w-4" /> Concluir
                       </Button>
                     </>
                   )}
                 </div>
               ) : (
-                <div className="pt-4 p-3 bg-slate-50 rounded-md text-xs text-slate-500 italic">
+                <div className="pt-4 p-3 bg-slate-50 rounded-md text-xs text-slate-500 italic break-words">
                   Visualização apenas (compromisso de outro usuário)
                 </div>
               )}
@@ -408,7 +508,9 @@ export default function CalendarView() {
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-destructive" /> Tem certeza?
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 Esta ação não pode ser desfeita. Isso excluirá permanentemente o compromisso.
               </AlertDialogDescription>
@@ -425,7 +527,9 @@ export default function CalendarView() {
         <AlertDialog open={isRetroactiveModalOpen} onOpenChange={setIsRetroactiveModalOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Compromisso Retroativo</AlertDialogTitle>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-amber-600" /> Compromisso Retroativo
+              </AlertDialogTitle>
               <AlertDialogDescription>
                 A data e hora selecionadas já passaram. Deseja continuar e criar este compromisso de forma retroativa?
               </AlertDialogDescription>

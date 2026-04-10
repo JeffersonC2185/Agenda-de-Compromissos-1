@@ -14,6 +14,7 @@ model User {
   nome         String
   role         Role          @default(cliente)
   ativo        Boolean       @default(true)
+  dataNascimento DateTime?   @db.Date @map("data_nascimento")
   compromissos Compromisso[]
   createdAt    DateTime      @default(now()) @map("created_at")
   updatedAt    DateTime      @updatedAt @map("updated_at")

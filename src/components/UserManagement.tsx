@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
-import { UserPlus, Users, Power, PowerOff, Edit } from 'lucide-react';
+import { UserPlus, Users, Power, PowerOff, Edit, Cake, UserCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '@/src/lib/api';
 import { User } from '@/src/types';
@@ -17,6 +17,7 @@ export default function UserManagement() {
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [dataNascimento, setDataNascimento] = useState('');
   const [role, setRole] = useState<'administrador' | 'cliente'>('cliente');
   const [loading, setLoading] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
@@ -26,6 +27,7 @@ export default function UserManagement() {
   const [editNome, setEditNome] = useState('');
   const [editEmail, setEditEmail] = useState('');
   const [editPassword, setEditPassword] = useState('');
+  const [editDataNascimento, setEditDataNascimento] = useState('');
   const [editRole, setEditRole] = useState<'administrador' | 'cliente'>('cliente');
 
   const fetchUsers = async () => {
@@ -45,11 +47,18 @@ export default function UserManagement() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api.post('/users', { nome, email, password, role });
+      await api.post('/users', { 
+        nome, 
+        email, 
+        password, 
+        role,
+        dataNascimento: dataNascimento || null 
+      });
       toast.success('Usuário criado com sucesso!');
       setNome('');
       setEmail('');
       setPassword('');
+      setDataNascimento('');
       setRole('cliente');
       fetchUsers();
     } catch (error: any) {
@@ -74,6 +83,7 @@ export default function UserManagement() {
     setEditNome(user.nome);
     setEditEmail(user.email);
     setEditRole(user.role);
+    setEditDataNascimento(user.dataNascimento ? user.dataNascimento.split('T')[0] : '');
     setEditPassword('');
     setIsEditModalOpen(true);
   };
@@ -83,7 +93,12 @@ export default function UserManagement() {
     if (!editingUser) return;
     setLoading(true);
     try {
-      const data: any = { nome: editNome, email: editEmail, role: editRole };
+      const data: any = { 
+        nome: editNome, 
+        email: editEmail, 
+        role: editRole,
+        dataNascimento: editDataNascimento || null
+      };
       if (editPassword) data.password = editPassword;
       
       await api.put(`/users/${editingUser.id}`, data);
@@ -106,7 +121,7 @@ export default function UserManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+          <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="space-y-2">
               <Label htmlFor="nome">Nome</Label>
               <Input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} required />
@@ -118,6 +133,10 @@ export default function UserManagement() {
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
               <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="nascimento">Nascimento (Opcional)</Label>
+              <Input id="nascimento" type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Tipo</Label>
@@ -203,9 +222,11 @@ export default function UserManagement() {
       </Card>
 
       <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Editar Usuário</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCircle className="h-5 w-5 text-blue-600" /> Editar Usuário
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdateUser} className="space-y-4 py-4">
             <div className="space-y-2">
@@ -215,6 +236,10 @@ export default function UserManagement() {
             <div className="space-y-2">
               <Label htmlFor="edit-email">E-mail</Label>
               <Input id="edit-email" type="email" value={editEmail} onChange={(e) => setEditEmail(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-nascimento">Data de Nascimento (Opcional)</Label>
+              <Input id="edit-nascimento" type="date" value={editDataNascimento} onChange={(e) => setEditDataNascimento(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="edit-password">Nova Senha (deixe em branco para manter)</Label>

@@ -4,6 +4,7 @@ export interface User {
   nome: string;
   role: 'administrador' | 'cliente';
   ativo: boolean;
+  dataNascimento?: string | null;
 }
 
 export interface Compromisso {

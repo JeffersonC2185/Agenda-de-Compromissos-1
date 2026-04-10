@@ -10,19 +10,31 @@ import ThemeToggle from './components/ThemeToggle';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import api from '@/src/lib/api';
-import { Calendar, LayoutDashboard, FileText, Users, LogOut, User as UserIcon, Settings } from 'lucide-react';
+import { Calendar, LayoutDashboard, FileText, Users, LogOut, User as UserIcon, Settings, Cake, UserCircle } from 'lucide-react';
 import { motion } from 'motion/react';
 import { User } from './types';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isLogoutDialogOpen, setIsLogoutDialogOpen] = useState(false);
   const [profileNome, setProfileNome] = useState('');
+  const [profileDataNascimento, setProfileDataNascimento] = useState('');
   const [profilePassword, setProfilePassword] = useState('');
   const [profileLoading, setProfileLoading] = useState(false);
 
@@ -33,6 +45,9 @@ export default function App() {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
       setProfileNome(parsedUser.nome);
+      if (parsedUser.dataNascimento) {
+        setProfileDataNascimento(parsedUser.dataNascimento.split('T')[0]);
+      }
     }
     setLoading(false);
   }, []);
@@ -40,12 +55,16 @@ export default function App() {
   const handleLogin = (user: User, token: string) => {
     setUser(user);
     setProfileNome(user.nome);
+    if (user.dataNascimento) {
+      setProfileDataNascimento(user.dataNascimento.split('T')[0]);
+    }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     setUser(null);
+    setIsLogoutDialogOpen(false);
   };
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
@@ -55,6 +74,7 @@ export default function App() {
     try {
       const data: any = { nome: profileNome };
       if (profilePassword) data.password = profilePassword;
+      data.dataNascimento = profileDataNascimento || null;
       
       const response = await api.put(`/users/${user.id}`, data);
       const updatedUser = response.data;
@@ -110,7 +130,7 @@ export default function App() {
             <Button variant="outline" size="sm" onClick={() => setIsProfileModalOpen(true)} className="text-muted-foreground">
               <Settings className="h-4 w-4 mr-2" /> Perfil
             </Button>
-            <Button variant="outline" size="sm" onClick={handleLogout} className="text-muted-foreground">
+            <Button variant="outline" size="sm" onClick={() => setIsLogoutDialogOpen(true)} className="text-muted-foreground">
               <LogOut className="h-4 w-4 mr-2" /> Sair
             </Button>
           </div>
@@ -158,7 +178,9 @@ export default function App() {
       <Dialog open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Meu Perfil</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <UserCircle className="h-5 w-5 text-blue-600" /> Meu Perfil
+            </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdateProfile} className="space-y-4 py-4">
             <div className="space-y-2">
@@ -181,6 +203,19 @@ export default function App() {
               <p className="text-[10px] text-muted-foreground italic">O e-mail não pode ser alterado pelo usuário.</p>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="profile-nascimento">Data de Nascimento (Opcional)</Label>
+              <div className="relative">
+                <Cake className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input 
+                  id="profile-nascimento" 
+                  type="date"
+                  value={profileDataNascimento} 
+                  onChange={(e) => setProfileDataNascimento(e.target.value)} 
+                  className="pl-10"
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="profile-password">Nova Senha (deixe em branco para manter)</Label>
               <Input 
                 id="profile-password" 
@@ -200,6 +235,25 @@ export default function App() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isLogoutDialogOpen} onOpenChange={setIsLogoutDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <LogOut className="h-5 w-5 text-destructive" /> Confirmar Saída
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Você tem certeza que deseja sair do sistema?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleLogout} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Sair
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Toaster position="top-right" />
     </div>

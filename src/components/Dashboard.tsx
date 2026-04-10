@@ -5,20 +5,44 @@ import api from '@/src/lib/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Calendar, CheckCircle, Clock, List } from 'lucide-react';
 
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import { User } from '@/src/types';
+
 export default function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [usuarios, setUsuarios] = useState<User[]>([]);
+  const [filtroUsuario, setFiltroUsuario] = useState<string>('todos');
+  
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin = user.role === 'administrador';
+
+  const fetchUsuarios = async () => {
+    if (!isAdmin) return;
+    try {
+      const response = await api.get('/users');
+      setUsuarios(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar usuários');
+    }
+  };
+
+  const fetchStats = async () => {
+    try {
+      let url = '/dashboard';
+      if (isAdmin && filtroUsuario !== 'todos') url += `?userId=${filtroUsuario}`;
+      
+      const response = await api.get(url);
+      setStats(response.data);
+    } catch (error) {
+      console.error('Erro ao buscar stats');
+    }
+  };
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await api.get('/dashboard');
-        setStats(response.data);
-      } catch (error) {
-        console.error('Erro ao buscar stats');
-      }
-    };
     fetchStats();
-  }, []);
+    if (isAdmin) fetchUsuarios();
+  }, [filtroUsuario]);
 
   if (!stats) return <div>Carregando...</div>;
 
@@ -34,6 +58,29 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
+      {isAdmin && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="flex items-end gap-4">
+              <div className="space-y-2">
+                <Label>Filtrar por Usuário</Label>
+                <Select value={filtroUsuario} onValueChange={setFiltroUsuario}>
+                  <SelectTrigger className="w-[250px]">
+                    <SelectValue placeholder="Todos os Usuários" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todos">Todos os Usuários</SelectItem>
+                    {usuarios.map(u => (
+                      <SelectItem key={u.id} value={u.id.toString()}>{u.nome}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">

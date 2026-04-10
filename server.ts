@@ -65,7 +65,13 @@ app.post("/api/auth/login", async (req, res) => {
 
     res.json({
       token,
-      user: { id: user.id, email: user.email, role: user.role, nome: user.nome },
+      user: { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role, 
+        nome: user.nome,
+        dataNascimento: user.dataNascimento 
+      },
     });
   } catch (error) {
     res.status(500).json({ error: "Erro no login" });
@@ -76,7 +82,7 @@ app.post("/api/auth/login", async (req, res) => {
 app.get("/api/users", authenticateToken, isAdmin, async (req, res) => {
   try {
     const users = await prisma.user.findMany({
-      select: { id: true, email: true, nome: true, role: true, ativo: true },
+      select: { id: true, email: true, nome: true, role: true, ativo: true, dataNascimento: true },
     });
     res.json(users);
   } catch (error) {
@@ -85,13 +91,19 @@ app.get("/api/users", authenticateToken, isAdmin, async (req, res) => {
 });
 
 app.post("/api/users", authenticateToken, isAdmin, async (req, res) => {
-  const { email, password, nome, role } = req.body;
+  const { email, password, nome, role, dataNascimento } = req.body;
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
     const user = await prisma.user.create({
-      data: { email, password: hashedPassword, nome, role },
+      data: { 
+        email, 
+        password: hashedPassword, 
+        nome, 
+        role,
+        dataNascimento: dataNascimento ? new Date(dataNascimento) : null
+      },
     });
-    res.status(201).json({ id: user.id, email: user.email, nome: user.nome, role: user.role });
+    res.status(201).json({ id: user.id, email: user.email, nome: user.nome, role: user.role, dataNascimento: user.dataNascimento });
   } catch (error) {
     res.status(500).json({ error: "Erro ao criar usuário" });
   }
@@ -115,7 +127,7 @@ app.patch("/api/users/:id/toggle-status", authenticateToken, isAdmin, async (req
 
 app.put("/api/users/:id", authenticateToken, async (req: any, res) => {
   const { id } = req.params;
-  const { nome, password, role, email } = req.body;
+  const { nome, password, role, email, dataNascimento } = req.body;
   const targetId = parseInt(id);
   const requester = req.user;
 
@@ -128,6 +140,7 @@ app.put("/api/users/:id", authenticateToken, async (req: any, res) => {
     const data: any = {};
     if (nome) data.nome = nome;
     if (password) data.password = await bcrypt.hash(password, 10);
+    if (dataNascimento !== undefined) data.dataNascimento = dataNascimento ? new Date(dataNascimento) : null;
     
     // Only admin can change role or email
     if (requester.role === "administrador") {
@@ -138,12 +151,28 @@ app.put("/api/users/:id", authenticateToken, async (req: any, res) => {
     const updatedUser = await prisma.user.update({
       where: { id: targetId },
       data,
-      select: { id: true, email: true, nome: true, role: true, ativo: true },
+      select: { id: true, email: true, nome: true, role: true, ativo: true, dataNascimento: true },
     });
 
     res.json(updatedUser);
   } catch (error) {
     res.status(500).json({ error: "Erro ao atualizar usuário" });
+  }
+});
+
+// Birthdays endpoint
+app.get("/api/birthdays", authenticateToken, async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: {
+        dataNascimento: { not: null },
+        ativo: true
+      },
+      select: { id: true, nome: true, dataNascimento: true }
+    });
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao buscar aniversários" });
   }
 });
 
@@ -261,10 +290,19 @@ app.patch("/api/compromissos/:id/concluir", authenticateToken, async (req: any, 
 
 app.get("/api/relatorios", authenticateToken, async (req: any, res) => {
   try {
-    const { dataInicio, dataFim } = req.query;
+    const { dataInicio, dataFim, userId: filterUserId, status } = req.query;
     const { role, id: userId } = req.user;
     
-    const where: any = role === "administrador" ? {} : { userId };
+    let where: any = role === "administrador" ? {} : { userId };
+    
+    if (role === "administrador" && filterUserId) {
+      where.userId = parseInt(filterUserId as string);
+    }
+
+    if (status) {
+      where.status = status;
+    }
+
     if (dataInicio && dataFim) {
       where.data = {
         gte: new Date(dataInicio as string),
@@ -273,7 +311,7 @@ app.get("/api/relatorios", authenticateToken, async (req: any, res) => {
     }
     const compromissos = await prisma.compromisso.findMany({
       where,
-      include: { user: { select: { nome: true } } },
+      include: { user: { select: { nome: true, email: true } } },
       orderBy: { data: "asc" },
     });
     res.json(compromissos);
@@ -284,8 +322,14 @@ app.get("/api/relatorios", authenticateToken, async (req: any, res) => {
 
 app.get("/api/dashboard", authenticateToken, async (req: any, res) => {
   try {
+    const { userId: filterUserId } = req.query;
     const { role, id: userId } = req.user;
-    const where = role === "administrador" ? {} : { userId };
+    
+    let where: any = role === "administrador" ? {} : { userId };
+    
+    if (role === "administrador" && filterUserId) {
+      where.userId = parseInt(filterUserId as string);
+    }
 
     const total = await prisma.compromisso.count({ where });
     const concluidos = await prisma.compromisso.count({ where: { ...where, status: "concluido" } });
@@ -329,25 +373,34 @@ async function seedAdmin() {
 
 // Vite middleware setup
 async function startServer() {
-  await seedAdmin();
-  
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
-  }
+  try {
+    console.log("Starting server initialization...");
+    await seedAdmin();
+    console.log("Admin seeding completed.");
+    
+    if (process.env.NODE_ENV !== "production") {
+      console.log("Running in development mode with Vite middleware.");
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      console.log("Running in production mode.");
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
 }
 
 startServer();

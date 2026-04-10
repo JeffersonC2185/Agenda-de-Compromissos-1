@@ -23,7 +23,9 @@ export default function AppointmentForm({ appointment, onSave, onCancel }: Appoi
       setTitulo(appointment.titulo);
       setDescricao(appointment.descricao || '');
       // Handle date string carefully to avoid timezone shifts
-      const dateValue = typeof appointment.data === 'string' ? appointment.data.split('T')[0] : format(new Date(appointment.data), 'yyyy-MM-dd');
+      const dateValue = typeof appointment.data === 'string' 
+        ? appointment.data.split('T')[0] 
+        : format(new Date(appointment.data + 'T12:00:00'), 'yyyy-MM-dd');
       setData(dateValue);
       setHora(appointment.hora);
     } else {
