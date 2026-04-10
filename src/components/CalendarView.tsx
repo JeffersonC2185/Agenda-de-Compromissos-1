@@ -142,6 +142,12 @@ export default function CalendarView() {
               right: 'dayGridMonth,timeGridWeek,timeGridDay'
             }}
             locale="pt-br"
+            buttonText={{
+              today: 'Hoje',
+              month: 'Mês',
+              week: 'Semana',
+              day: 'Dia'
+            }}
             events={events}
             dateClick={handleDateClick}
             eventClick={handleEventClick}
