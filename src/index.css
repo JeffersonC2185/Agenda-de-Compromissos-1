@@ -24,6 +24,22 @@
   @apply bg-slate-100 border-slate-300 text-slate-900;
 }
 
+.fc .fc-calendarTitle-button {
+  @apply min-w-[180px] font-semibold text-base px-6 !bg-background !text-foreground border-input hover:!bg-slate-100 dark:hover:!bg-slate-800 hover:!text-slate-900 dark:hover:!text-slate-50 active:!bg-slate-200 dark:active:!bg-slate-700 transition-colors;
+}
+
+.fc .fc-novoCompromisso-button {
+  @apply !bg-blue-600 !border-blue-600 !text-white hover:!bg-blue-700 hover:!border-blue-700 active:!bg-blue-800 transition-colors;
+}
+
+.fc .fc-button-group > .fc-button {
+  @apply focus:z-10;
+}
+
+.fc .fc-toolbar-chunk:nth-child(2) .fc-button-group {
+  @apply shadow-sm;
+}
+
 .fc-theme-standard td, .fc-theme-standard th {
   @apply border-slate-200;
 }

@@ -1,30 +1,123 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import CalendarView from './components/CalendarView';
 import Dashboard from './components/Dashboard';
 import Reports from './components/Reports';
+import UserManagement from './components/UserManagement';
+import Login from './components/Login';
+import Footer from './components/Footer';
+import ThemeToggle from './components/ThemeToggle';
 import { Toaster } from '@/components/ui/sonner';
-import { Calendar, LayoutDashboard, FileText } from 'lucide-react';
+import { toast } from 'sonner';
+import api from '@/src/lib/api';
+import { Calendar, LayoutDashboard, FileText, Users, LogOut, User as UserIcon, Settings } from 'lucide-react';
 import { motion } from 'motion/react';
+import { User } from './types';
+import { Button } from '@/components/ui/button';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 export default function App() {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileNome, setProfileNome] = useState('');
+  const [profilePassword, setProfilePassword] = useState('');
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  useEffect(() => {
+    const savedUser = localStorage.getItem('user');
+    const token = localStorage.getItem('token');
+    if (savedUser && token) {
+      const parsedUser = JSON.parse(savedUser);
+      setUser(parsedUser);
+      setProfileNome(parsedUser.nome);
+    }
+    setLoading(false);
+  }, []);
+
+  const handleLogin = (user: User, token: string) => {
+    setUser(user);
+    setProfileNome(user.nome);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    setProfileLoading(true);
+    try {
+      const data: any = { nome: profileNome };
+      if (profilePassword) data.password = profilePassword;
+      
+      const response = await api.put(`/users/${user.id}`, data);
+      const updatedUser = response.data;
+      
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+      toast.success('Perfil atualizado com sucesso!');
+      setIsProfileModalOpen(false);
+      setProfilePassword('');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Erro ao atualizar perfil');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  if (loading) return null;
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background transition-colors duration-300">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle />
+        </div>
+        <Login onLogin={handleLogin} />
+        <Toaster position="top-right" />
+      </div>
+    );
+  }
+
+  const isAdmin = user.role === 'administrador';
+
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
+    <div className="min-h-screen bg-background transition-colors duration-300 p-4 md:p-8">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="max-w-7xl mx-auto space-y-8"
       >
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Agenda de Compromissos</h1>
-            <p className="text-slate-500">Gerencie seus compromissos de forma simples e organizada.</p>
+        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-6 rounded-xl shadow-sm border transition-colors duration-300">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-blue-600 rounded-lg">
+              <Calendar className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-foreground">Agenda de Compromissos</h1>
+              <p className="text-muted-foreground text-sm">Olá, {user.nome} ({user.role})</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <ThemeToggle />
+            <Button variant="outline" size="sm" onClick={() => setIsProfileModalOpen(true)} className="text-muted-foreground">
+              <Settings className="h-4 w-4 mr-2" /> Perfil
+            </Button>
+            <Button variant="outline" size="sm" onClick={handleLogout} className="text-muted-foreground">
+              <LogOut className="h-4 w-4 mr-2" /> Sair
+            </Button>
           </div>
         </header>
 
         <Tabs defaultValue="calendar" className="w-full space-y-6">
-          <TabsList className="grid w-full grid-cols-3 max-w-md">
+          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-4 max-w-xl' : 'grid-cols-3 max-w-md'}`}>
             <TabsTrigger value="calendar" className="flex items-center gap-2">
               <Calendar className="h-4 w-4" /> Calendário
             </TabsTrigger>
@@ -34,6 +127,11 @@ export default function App() {
             <TabsTrigger value="reports" className="flex items-center gap-2">
               <FileText className="h-4 w-4" /> Relatórios
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="users" className="flex items-center gap-2">
+                <Users className="h-4 w-4" /> Usuários
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="calendar" className="border-none p-0 outline-none">
@@ -47,8 +145,62 @@ export default function App() {
           <TabsContent value="reports" className="border-none p-0 outline-none">
             <Reports />
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="users" className="border-none p-0 outline-none">
+              <UserManagement />
+            </TabsContent>
+          )}
         </Tabs>
+        <Footer />
       </motion.div>
+
+      <Dialog open={isProfileModalOpen} onOpenChange={setIsProfileModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Meu Perfil</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdateProfile} className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="profile-nome">Nome</Label>
+              <Input 
+                id="profile-nome" 
+                value={profileNome} 
+                onChange={(e) => setProfileNome(e.target.value)} 
+                required 
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-email">E-mail</Label>
+              <Input 
+                id="profile-email" 
+                value={user?.email} 
+                disabled 
+                className="bg-muted"
+              />
+              <p className="text-[10px] text-muted-foreground italic">O e-mail não pode ser alterado pelo usuário.</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="profile-password">Nova Senha (deixe em branco para manter)</Label>
+              <Input 
+                id="profile-password" 
+                type="password" 
+                value={profilePassword} 
+                onChange={(e) => setProfilePassword(e.target.value)} 
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsProfileModalOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={profileLoading}>
+                {profileLoading ? 'Salvando...' : 'Salvar Alterações'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
       <Toaster position="top-right" />
     </div>
   );

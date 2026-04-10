@@ -7,6 +7,20 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id           Int           @id @default(autoincrement())
+  email        String        @unique
+  password     String
+  nome         String
+  role         Role          @default(cliente)
+  ativo        Boolean       @default(true)
+  compromissos Compromisso[]
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
 model Compromisso {
   id        Int      @id @default(autoincrement())
   titulo    String   @db.VarChar(255)
@@ -14,6 +28,9 @@ model Compromisso {
   data      DateTime @db.Date
   hora      String   @db.VarChar(10) // HH:mm
   status    Status   @default(pendente)
+  retroativo Boolean  @default(false)
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
@@ -23,4 +40,9 @@ model Compromisso {
 enum Status {
   pendente
   concluido
+}
+
+enum Role {
+  administrador
+  cliente
 }

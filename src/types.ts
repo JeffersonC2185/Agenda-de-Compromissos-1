@@ -1,3 +1,11 @@
+export interface User {
+  id: number;
+  email: string;
+  nome: string;
+  role: 'administrador' | 'cliente';
+  ativo: boolean;
+}
+
 export interface Compromisso {
   id: number;
   titulo: string;
@@ -5,6 +13,12 @@ export interface Compromisso {
   data: string; // ISO string
   hora: string;
   status: 'pendente' | 'concluido';
+  retroativo: boolean;
+  userId: number;
+  user?: {
+    nome: string;
+    email: string;
+  };
   createdAt: string;
   updatedAt: string;
 }
@@ -14,4 +28,9 @@ export interface DashboardStats {
   concluidos: number;
   pendentes: number;
   doDia: number;
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
 }

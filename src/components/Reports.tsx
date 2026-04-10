@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Compromisso } from '@/src/types';
-import axios from 'axios';
+import api from '@/src/lib/api';
 import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,10 +14,13 @@ export default function Reports() {
   const [dataInicio, setDataInicio] = useState(format(new Date(), 'yyyy-MM-01'));
   const [dataFim, setDataFim] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [compromissos, setCompromissos] = useState<Compromisso[]>([]);
+  
+  const user = JSON.parse(localStorage.getItem('user') || '{}');
+  const isAdmin = user.role === 'administrador';
 
   const fetchRelatorio = async () => {
     try {
-      const response = await axios.get(`/api/relatorios?dataInicio=${dataInicio}&dataFim=${dataFim}`);
+      const response = await api.get(`/relatorios?dataInicio=${dataInicio}&dataFim=${dataFim}`);
       setCompromissos(response.data);
     } catch (error) {
       console.error('Erro ao buscar relatório');
@@ -65,6 +68,8 @@ export default function Reports() {
                 <TableHead>Data</TableHead>
                 <TableHead>Hora</TableHead>
                 <TableHead>Título</TableHead>
+                {isAdmin && <TableHead>Usuário</TableHead>}
+                <TableHead>Retroativo</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -75,6 +80,14 @@ export default function Reports() {
                     <TableCell>{new Date(c.data).toLocaleDateString('pt-BR')}</TableCell>
                     <TableCell>{c.hora}</TableCell>
                     <TableCell className="font-medium">{c.titulo}</TableCell>
+                    {isAdmin && <TableCell>{c.user?.nome || 'N/A'}</TableCell>}
+                    <TableCell>
+                      {c.retroativo ? (
+                        <Badge variant="outline" className="text-amber-600 border-amber-600">Sim</Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">Não</span>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={c.status === 'concluido' ? 'default' : 'secondary'}>
                         {c.status === 'concluido' ? 'Concluído' : 'Pendente'}
@@ -84,7 +97,7 @@ export default function Reports() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                  <TableCell colSpan={isAdmin ? 6 : 5} className="text-center py-8 text-muted-foreground">
                     Nenhum compromisso encontrado para este período.
                   </TableCell>
                 </TableRow>

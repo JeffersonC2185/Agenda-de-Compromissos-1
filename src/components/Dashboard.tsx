@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DashboardStats } from '@/src/types';
-import axios from 'axios';
+import api from '@/src/lib/api';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import { Calendar, CheckCircle, Clock, List } from 'lucide-react';
 
@@ -11,7 +11,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await axios.get('/api/dashboard');
+        const response = await api.get('/dashboard');
         setStats(response.data);
       } catch (error) {
         console.error('Erro ao buscar stats');

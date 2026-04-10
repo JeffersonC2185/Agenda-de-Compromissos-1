@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Compromisso } from '@/src/types';
 import { format } from 'date-fns';
+import api from '@/src/lib/api';
 
 interface AppointmentFormProps {
-  appointment?: Compromisso | null;
+  appointment?: Partial<Compromisso> | null;
   onSave: (data: Partial<Compromisso>) => void;
   onCancel: () => void;
 }
@@ -22,8 +22,18 @@ export default function AppointmentForm({ appointment, onSave, onCancel }: Appoi
     if (appointment) {
       setTitulo(appointment.titulo);
       setDescricao(appointment.descricao || '');
-      setData(format(new Date(appointment.data), 'yyyy-MM-dd'));
+      // Handle date string carefully to avoid timezone shifts
+      const dateValue = typeof appointment.data === 'string' ? appointment.data.split('T')[0] : format(new Date(appointment.data), 'yyyy-MM-dd');
+      setData(dateValue);
       setHora(appointment.hora);
+    } else {
+      setTitulo('');
+      setDescricao('');
+      setData(format(new Date(), 'yyyy-MM-dd'));
+      // Default to next hour if no appointment provided
+      const now = new Date();
+      now.setHours(now.getHours() + 1);
+      setHora(`${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`);
     }
   }, [appointment]);
 
@@ -86,7 +96,7 @@ export default function AppointmentForm({ appointment, onSave, onCancel }: Appoi
           Cancelar
         </Button>
         <Button type="submit">
-          {appointment ? 'Atualizar' : 'Salvar'}
+          {appointment && appointment.id !== 0 ? 'Atualizar' : 'Salvar'}
         </Button>
       </div>
     </form>
