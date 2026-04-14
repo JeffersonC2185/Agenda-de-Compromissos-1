@@ -44,7 +44,7 @@ Este guia descreve como configurar e rodar a aplicação SegAgenda em sua própr
    **Opção A: Usando PM2 (Recomendado)**
    ```bash
    npm install -g pm2
-   pm2 start ecosystem.config.js --env production
+   pm2 start ecosystem.config.cjs --env production
    ```
    *Para salvar a lista de processos e iniciar no boot:*
    ```bash
