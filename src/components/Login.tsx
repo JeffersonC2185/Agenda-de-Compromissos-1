@@ -78,9 +78,9 @@ export default function Login({ onLogin }: LoginProps) {
               </Button>
             </form>
             <div className="mt-6 p-4 bg-secondary rounded-md text-xs text-secondary-foreground">
-              <p className="font-bold mb-1">Acesso Admin (Seed):</p>
-              <p>E-mail: admin@agenda.com</p>
-              <p>Senha: admin123</p>
+              <p className="font-bold mb-1">Acesso de demonstração:</p>
+              <p>E-mail: test@segnorte.com.br</p>
+              <p>Senha: test123</p>
             </div>
           </CardContent>
         </Card>

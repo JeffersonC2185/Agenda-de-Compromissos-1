@@ -355,10 +355,10 @@ app.get("/api/dashboard", authenticateToken, async (req: any, res) => {
 
 // Seed Admin User if not exists
 async function seedAdmin() {
-  const adminEmail = "admin@agenda.com";
+  const adminEmail = "test@segnorte.com.br";
   const admin = await prisma.user.findUnique({ where: { email: adminEmail } });
   if (!admin) {
-    const hashedPassword = await bcrypt.hash("admin123", 10);
+    const hashedPassword = await bcrypt.hash("test123", 10);
     await prisma.user.create({
       data: {
         email: adminEmail,
@@ -367,7 +367,7 @@ async function seedAdmin() {
         role: "administrador",
       },
     });
-    console.log("Admin user seeded: admin@agenda.com / admin123");
+    console.log("Admin user seeded: test@segnorte.com.br / test123");
   }
 }
 

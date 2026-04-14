@@ -127,31 +127,32 @@ export default function Reports() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4 mb-6">
-          <div className="flex flex-col space-y-2 w-full sm:w-auto">
-            <Label>Data Inicial</Label>
+        <div className="flex flex-wrap items-end gap-4 mb-8">
+          <div className="flex flex-col gap-2 min-w-[160px]">
+            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Data Inicial</Label>
             <Input
               type="date"
-              className="w-full sm:w-[160px] !h-10 !min-h-10 !max-h-10 px-3 text-sm py-0"
+              className="!h-10 !py-0 text-sm border-muted-foreground/20 focus:border-primary transition-all"
               value={dataInicio}
               onChange={(e) => setDataInicio(e.target.value)}
             />
           </div>
-          <div className="flex flex-col space-y-2 w-full sm:w-auto">
-            <Label>Data Final</Label>
+
+          <div className="flex flex-col gap-2 min-w-[160px]">
+            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Data Final</Label>
             <Input
               type="date"
-              className="w-full sm:w-[160px] !h-10 !min-h-10 !max-h-10 px-3 text-sm py-0"
+              className="!h-10 !py-0 text-sm border-muted-foreground/20 focus:border-primary transition-all"
               value={dataFim}
               onChange={(e) => setDataFim(e.target.value)}
             />
           </div>
           
           {isAdmin && (
-            <div className="flex flex-col space-y-2 w-full sm:w-auto">
-              <Label>Usuário</Label>
+            <div className="flex flex-col gap-2 min-w-[200px]">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Usuário</Label>
               <Select value={filtroUsuario} onValueChange={setFiltroUsuario}>
-                <SelectTrigger className="w-full sm:w-[200px] !h-10 !min-h-10 !max-h-10 px-3 text-sm py-0">
+                <SelectTrigger className="w-full !h-10 !py-0 text-sm border-muted-foreground/20 focus:border-primary transition-all">
                   <SelectValue placeholder="Todos os Usuários" />
                 </SelectTrigger>
                 <SelectContent>
@@ -164,10 +165,10 @@ export default function Reports() {
             </div>
           )}
 
-          <div className="flex flex-col space-y-2 w-full sm:w-auto">
-            <Label>Status</Label>
+          <div className="flex flex-col gap-2 min-w-[160px]">
+            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Status</Label>
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="w-full sm:w-[160px] !h-10 !min-h-10 !max-h-10 px-3 text-sm py-0">
+              <SelectTrigger className="w-full !h-10 !py-0 text-sm border-muted-foreground/20 focus:border-primary transition-all">
                 <SelectValue placeholder="Todos os Status" />
               </SelectTrigger>
               <SelectContent>
@@ -178,13 +179,21 @@ export default function Reports() {
             </Select>
           </div>
 
-          <div className="flex flex-col space-y-2 w-full sm:w-auto">
-            <Label className="hidden sm:block invisible">Ações &nbsp;</Label>
+          <div className="flex flex-col gap-2">
+            <Label className="text-xs text-muted-foreground uppercase tracking-wider invisible hidden sm:block">Ações</Label>
             <div className="flex gap-2">
-              <Button onClick={fetchRelatorio} className="flex-1 sm:flex-none !h-10 !min-h-10 !max-h-10">
+              <Button 
+                onClick={fetchRelatorio} 
+                className="!h-10 px-6 font-semibold shadow-sm hover:shadow-md transition-all"
+              >
                 <Search className="mr-2 h-4 w-4" /> Filtrar
               </Button>
-              <Button variant="outline" onClick={exportToExcel} disabled={compromissos.length === 0} className="flex-1 sm:flex-none !h-10 !min-h-10 !max-h-10">
+              <Button 
+                variant="outline" 
+                onClick={exportToExcel} 
+                disabled={compromissos.length === 0} 
+                className="!h-10 px-4 border-muted-foreground/20 hover:bg-muted transition-all"
+              >
                 <Download className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Exportar</span> XLSX
               </Button>
             </div>

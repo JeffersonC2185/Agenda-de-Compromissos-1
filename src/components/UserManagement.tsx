@@ -121,28 +121,59 @@ export default function UserManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="nome">Nome</Label>
-              <Input id="nome" className="h-10" value={nome} onChange={(e) => setNome(e.target.value)} required />
+          <form onSubmit={handleCreateUser} className="flex flex-wrap items-end gap-4">
+            <div className="flex flex-col gap-2 flex-1 min-w-[200px]">
+              <Label htmlFor="nome" className="text-xs text-muted-foreground uppercase tracking-wider">Nome Completo</Label>
+              <Input 
+                id="nome" 
+                className="!h-11 !py-0 text-sm border-muted-foreground/20 focus:border-primary transition-all" 
+                value={nome} 
+                onChange={(e) => setNome(e.target.value)} 
+                required 
+                placeholder="Ex: João Silva"
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="email">E-mail</Label>
-              <Input id="email" type="email" className="h-10" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            <div className="flex flex-col gap-2 flex-1 min-w-[200px]">
+              <Label htmlFor="email" className="text-xs text-muted-foreground uppercase tracking-wider">E-mail</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                className="!h-11 !py-0 text-sm border-muted-foreground/20 focus:border-primary transition-all" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)} 
+                required 
+                placeholder="joao@exemplo.com"
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Senha</Label>
-              <Input id="password" type="password" className="h-10" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <div className="flex flex-col gap-2 flex-1 min-w-[150px]">
+              <Label htmlFor="password" className="text-xs text-muted-foreground uppercase tracking-wider">Senha</Label>
+              <Input 
+                id="password" 
+                type="password" 
+                className="!h-11 !py-0 text-sm border-muted-foreground/20 focus:border-primary transition-all" 
+                value={password} 
+                onChange={(e) => setPassword(e.target.value)} 
+                required 
+                placeholder="••••••••"
+              />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="nascimento">Nascimento (Opcional)</Label>
-              <Input id="nascimento" type="date" className="h-10" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
+            <div className="flex flex-col gap-2 flex-1 min-w-[150px]">
+              <Label htmlFor="nascimento" className="text-xs text-muted-foreground uppercase tracking-wider">Nascimento</Label>
+              <div className="relative">
+                <Input 
+                  id="nascimento" 
+                  type="date" 
+                  className="!h-11 !py-0 text-sm border-muted-foreground/20 focus:border-primary transition-all" 
+                  value={dataNascimento} 
+                  onChange={(e) => setDataNascimento(e.target.value)} 
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="role">Tipo</Label>
+            <div className="flex flex-col gap-2 flex-1 min-w-[150px]">
+              <Label htmlFor="role" className="text-xs text-muted-foreground uppercase tracking-wider">Tipo de Acesso</Label>
               <Select value={role} onValueChange={(val: any) => setRole(val)}>
-                <SelectTrigger id="role" className="w-full h-10 flex items-center">
-                  <SelectValue placeholder="Selecione o tipo" />
+                <SelectTrigger id="role" className="w-full !h-11 !py-0 text-sm border-muted-foreground/20 focus:border-primary transition-all">
+                  <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="cliente">Cliente</SelectItem>
@@ -150,9 +181,9 @@ export default function UserManagement() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label className="invisible">Ação</Label>
-              <Button type="submit" className="w-full h-10" disabled={loading}>
+            <div className="flex flex-col gap-2">
+              <Label className="invisible hidden lg:block">Ação</Label>
+              <Button type="submit" className="!h-11 px-8 font-semibold shadow-sm hover:shadow-md transition-all" disabled={loading}>
                 {loading ? 'Criando...' : 'Cadastrar'}
               </Button>
             </div>
@@ -180,36 +211,51 @@ export default function UserManagement() {
               </TableHeader>
               <TableBody>
                 {users.map((u) => (
-                  <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.nome}</TableCell>
-                    <TableCell>{u.email}</TableCell>
-                    <TableCell>
-                      <Badge variant={u.role === 'administrador' ? 'default' : 'secondary'}>
+                  <TableRow key={u.id} className="hover:bg-muted/50 transition-colors">
+                    <TableCell className="py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-xs">
+                          {u.nome.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="font-medium text-foreground">{u.nome}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="py-4 text-muted-foreground">{u.email}</TableCell>
+                    <TableCell className="py-4">
+                      <Badge 
+                        variant={u.role === 'administrador' ? 'default' : 'secondary'}
+                        className="capitalize font-medium px-2.5 py-0.5"
+                      >
                         {u.role}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <Badge variant={u.ativo ? 'outline' : 'destructive'} className={u.ativo ? 'border-emerald-500 text-emerald-600' : ''}>
+                    <TableCell className="py-4">
+                      <Badge 
+                        variant={u.ativo ? 'outline' : 'destructive'} 
+                        className={u.ativo ? 'border-emerald-500/50 bg-emerald-500/5 text-emerald-600 font-medium px-2.5 py-0.5' : 'font-medium px-2.5 py-0.5'}
+                      >
                         {u.ativo ? 'Ativo' : 'Inativo'}
                       </Badge>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-1">
+                    <TableCell className="py-4 text-right">
+                      <div className="flex justify-end gap-2">
                         <Button
                           variant="ghost"
                           size="icon"
+                          className="h-9 w-9 hover:bg-primary/10 hover:text-primary transition-colors"
                           onClick={() => openEditModal(u)}
                           title="Editar Usuário"
                         >
-                          <Edit className="h-4 w-4 text-primary" />
+                          <Edit className="h-4 w-4" />
                         </Button>
                         <Button
                           variant="ghost"
                           size="icon"
+                          className={`h-9 w-9 transition-colors ${u.ativo ? 'hover:bg-destructive/10 hover:text-destructive' : 'hover:bg-emerald-500/10 hover:text-emerald-600'}`}
                           onClick={() => toggleStatus(u.id)}
                           title={u.ativo ? 'Desativar' : 'Ativar'}
                         >
-                          {u.ativo ? <PowerOff className="h-4 w-4 text-destructive" /> : <Power className="h-4 w-4 text-emerald-500" />}
+                          {u.ativo ? <PowerOff className="h-4 w-4" /> : <Power className="h-4 w-4" />}
                         </Button>
                       </div>
                     </TableCell>

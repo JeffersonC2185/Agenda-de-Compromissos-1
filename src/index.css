@@ -9,6 +9,11 @@
   --fc-daygrid-event-dot-width: 8px;
   --fc-event-border-color: transparent;
   --fc-today-bg-color: rgba(59, 130, 246, 0.05);
+  --fc-page-bg-color: transparent;
+}
+
+.dark {
+  --fc-border-color: rgba(255, 255, 255, 0.1);
 }
 
 .fc {
@@ -59,12 +64,29 @@
   @apply bg-primary text-primary-foreground rounded-full w-7 h-7 flex items-center justify-center m-1 font-bold shadow-sm;
 }
 
+.fc-col-header-cell {
+  @apply bg-muted/50 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground border-none!;
+}
+
+.fc-theme-standard .fc-scrollgrid {
+  @apply border-none!;
+}
+
 .fc-theme-standard td, .fc-theme-standard th {
   @apply border-border;
 }
 
-.fc-col-header-cell {
-  @apply bg-muted/50 py-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground;
+.fc-theme-standard .fc-list {
+  @apply border-border;
+}
+
+/* Remove border between header and body */
+.fc .fc-scrollgrid-section-header > td {
+  @apply border-none!;
+}
+
+.fc .fc-scrollgrid-section-body > td {
+  @apply border-t-0!;
 }
 
 .fc-daygrid-day-number {
