@@ -55,6 +55,7 @@ export default function AppointmentForm({ appointment, onSave, onCancel }: Appoi
         <Label htmlFor="titulo">Título *</Label>
         <Input
           id="titulo"
+          className="h-10"
           value={titulo}
           onChange={(e) => setTitulo(e.target.value)}
           required
@@ -67,6 +68,7 @@ export default function AppointmentForm({ appointment, onSave, onCancel }: Appoi
           <Input
             id="data"
             type="date"
+            className="h-10"
             value={data}
             onChange={(e) => setData(e.target.value)}
             required
@@ -77,6 +79,7 @@ export default function AppointmentForm({ appointment, onSave, onCancel }: Appoi
           <Input
             id="hora"
             type="time"
+            className="h-10"
             value={hora}
             onChange={(e) => setHora(e.target.value)}
             required

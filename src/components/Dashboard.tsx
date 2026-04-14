@@ -47,8 +47,8 @@ export default function Dashboard() {
   if (!stats) return <div>Carregando...</div>;
 
   const pieData = [
-    { name: 'Concluídos', value: stats.concluidos, color: '#10b981' },
-    { name: 'Pendentes', value: stats.pendentes, color: '#3b82f6' },
+    { name: 'Concluídos', value: stats.concluidos, color: '#00a650' },
+    { name: 'Pendentes', value: stats.pendentes, color: '#ffc20e' },
   ];
 
   const barData = [
@@ -61,11 +61,11 @@ export default function Dashboard() {
       {isAdmin && (
         <Card>
           <CardContent className="pt-6">
-            <div className="flex items-end gap-4">
-              <div className="space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-end gap-4">
+              <div className="space-y-2 w-full sm:w-auto">
                 <Label>Filtrar por Usuário</Label>
                 <Select value={filtroUsuario} onValueChange={setFiltroUsuario}>
-                  <SelectTrigger className="w-[250px]">
+                  <SelectTrigger className="w-full sm:w-[250px] h-10 flex items-center">
                     <SelectValue placeholder="Todos os Usuários" />
                   </SelectTrigger>
                   <SelectContent>
@@ -103,7 +103,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Pendentes</CardTitle>
-            <Clock className="h-4 w-4 text-blue-500" />
+            <Clock className="h-4 w-4 text-primary" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.pendentes}</div>
@@ -112,7 +112,7 @@ export default function Dashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">Hoje</CardTitle>
-            <Calendar className="h-4 w-4 text-orange-500" />
+            <Calendar className="h-4 w-4 text-accent" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.doDia}</div>
@@ -159,7 +159,7 @@ export default function Dashboard() {
                 <XAxis dataKey="name" />
                 <YAxis />
                 <Tooltip />
-                <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="value" fill="#00a650" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>

@@ -8,7 +8,7 @@ export default function Footer() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
           <div className="space-y-4">
-            <div className="flex items-center gap-2 text-blue-600 font-semibold">
+            <div className="flex items-center gap-2 text-primary font-semibold">
               <Info className="h-5 w-5" />
               <span>Como Usar</span>
             </div>
@@ -19,7 +19,7 @@ export default function Footer() {
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium text-sm">
+            <div className="flex items-center gap-2 text-foreground font-medium text-sm">
               <Calendar className="h-4 w-4" />
               <span>Agendamento</span>
             </div>
@@ -30,7 +30,7 @@ export default function Footer() {
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium text-sm">
+            <div className="flex items-center gap-2 text-foreground font-medium text-sm">
               <Clock className="h-4 w-4" />
               <span>Retroativos</span>
             </div>
@@ -41,7 +41,7 @@ export default function Footer() {
           </div>
 
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-slate-700 dark:text-slate-200 font-medium text-sm">
+            <div className="flex items-center gap-2 text-foreground font-medium text-sm">
               <CheckCircle className="h-4 w-4" />
               <span>Conclusão</span>
             </div>
@@ -52,7 +52,7 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-slate-100 dark:border-slate-800">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-8 border-t border-border">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <ShieldCheck className="h-4 w-4" />
             <span>Sistema Seguro & Gerenciamento de Agenda Profissional</span>

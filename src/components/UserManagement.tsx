@@ -124,24 +124,24 @@ export default function UserManagement() {
           <form onSubmit={handleCreateUser} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
             <div className="space-y-2">
               <Label htmlFor="nome">Nome</Label>
-              <Input id="nome" value={nome} onChange={(e) => setNome(e.target.value)} required />
+              <Input id="nome" className="h-10" value={nome} onChange={(e) => setNome(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+              <Input id="email" type="email" className="h-10" value={email} onChange={(e) => setEmail(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+              <Input id="password" type="password" className="h-10" value={password} onChange={(e) => setPassword(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="nascimento">Nascimento (Opcional)</Label>
-              <Input id="nascimento" type="date" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
+              <Input id="nascimento" type="date" className="h-10" value={dataNascimento} onChange={(e) => setDataNascimento(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="role">Tipo</Label>
               <Select value={role} onValueChange={(val: any) => setRole(val)}>
-                <SelectTrigger id="role" className="w-full">
+                <SelectTrigger id="role" className="w-full h-10 flex items-center">
                   <SelectValue placeholder="Selecione o tipo" />
                 </SelectTrigger>
                 <SelectContent>
@@ -152,7 +152,7 @@ export default function UserManagement() {
             </div>
             <div className="space-y-2">
               <Label className="invisible">Ação</Label>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full h-10" disabled={loading}>
                 {loading ? 'Criando...' : 'Cadastrar'}
               </Button>
             </div>
@@ -167,7 +167,7 @@ export default function UserManagement() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="rounded-md border">
+          <div className="rounded-md border overflow-x-auto scrollbar-hide">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -201,7 +201,7 @@ export default function UserManagement() {
                           onClick={() => openEditModal(u)}
                           title="Editar Usuário"
                         >
-                          <Edit className="h-4 w-4 text-blue-500" />
+                          <Edit className="h-4 w-4 text-primary" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -225,7 +225,7 @@ export default function UserManagement() {
         <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UserCircle className="h-5 w-5 text-blue-600" /> Editar Usuário
+              <UserCircle className="h-5 w-5 text-primary" /> Editar Usuário
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdateUser} className="space-y-4 py-4">
@@ -248,7 +248,7 @@ export default function UserManagement() {
             <div className="space-y-2">
               <Label htmlFor="edit-role">Tipo</Label>
               <Select value={editRole} onValueChange={(val: any) => setEditRole(val)}>
-                <SelectTrigger id="edit-role" className="w-full">
+                <SelectTrigger id="edit-role" className="w-full h-10 flex items-center">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

@@ -44,6 +44,14 @@ export default function CalendarView() {
   const [birthdays, setBirthdays] = useState<any[]>([]);
   const calendarRef = useRef<FullCalendar>(null);
   
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const user = JSON.parse(localStorage.getItem('user') || '{}');
   const isAdmin = user.role === 'administrador';
 
@@ -94,8 +102,8 @@ export default function CalendarView() {
           id: `comp-${c.id}`,
           title: isAdmin && !isOwner ? `[${c.user?.nome}] ${c.titulo}` : c.titulo,
           start: `${c.data.split('T')[0]}T${c.hora}`,
-          backgroundColor: c.status === 'concluido' ? '#10b981' : (isOwner ? '#3b82f6' : '#94a3b8'),
-          borderColor: c.status === 'concluido' ? '#10b981' : (isOwner ? '#3b82f6' : '#94a3b8'),
+          backgroundColor: c.status === 'concluido' ? '#00a650' : (isOwner ? '#ffc20e' : '#94a3b8'),
+          borderColor: c.status === 'concluido' ? '#00a650' : (isOwner ? '#ffc20e' : '#94a3b8'),
           extendedProps: { ...c, isBirthday: false },
         };
       });
@@ -113,8 +121,8 @@ export default function CalendarView() {
           title: `🎂 Aniversário: ${u.nome}`,
           start: `${year}-${(month + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`,
           allDay: true,
-          backgroundColor: '#f472b6',
-          borderColor: '#f472b6',
+          backgroundColor: '#ffc20e',
+          borderColor: '#ffc20e',
           display: 'block',
           extendedProps: { isBirthday: true, userName: u.nome }
         }));
@@ -141,7 +149,7 @@ export default function CalendarView() {
 
       if (diffMinutes > 0 && diffMinutes <= 60) {
         toast.info(`Compromisso Próximo: "${c.titulo}" começa em ${diffMinutes} minutos!`, {
-          icon: <Bell className="h-4 w-4 text-blue-500" />,
+          icon: <Bell className="h-4 w-4 text-primary" />,
           duration: 10000,
           action: {
             label: 'Fechar',
@@ -338,7 +346,11 @@ export default function CalendarView() {
             ref={calendarRef}
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
-            headerToolbar={{
+            headerToolbar={isMobile ? {
+              left: 'prev,next',
+              center: 'calendarTitle',
+              right: 'novoCompromisso'
+            } : {
               left: 'today prev,next',
               center: 'calendarTitle',
               right: 'dayGridMonth,timeGridWeek,timeGridDay novoCompromisso'
@@ -389,7 +401,7 @@ export default function CalendarView() {
           <DialogContent className="max-w-[95vw] sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2 pr-8">
-                <CalendarDays className="h-5 w-5 text-blue-600" />
+                <CalendarDays className="h-5 w-5 text-primary" />
                 {selectedAppointment && selectedAppointment.id !== 0 ? 'Editar Compromisso' : 'Novo Compromisso'}
               </DialogTitle>
             </DialogHeader>
@@ -406,7 +418,7 @@ export default function CalendarView() {
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
-                <CalendarIcon className="h-5 w-5 text-blue-600" /> Selecionar Ano
+                <CalendarIcon className="h-5 w-5 text-primary" /> Selecionar Ano
               </DialogTitle>
             </DialogHeader>
             <div className="grid grid-cols-3 gap-2 py-4">
@@ -431,7 +443,7 @@ export default function CalendarView() {
               <DialogTitle className="flex flex-col gap-1 pr-8">
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <div className="flex items-center gap-2 truncate min-w-0 flex-1">
-                    <Clock className="h-5 w-5 text-blue-600 shrink-0" />
+                    <Clock className="h-5 w-5 text-primary shrink-0" />
                     <span className="truncate block">{currentAppointment?.titulo}</span>
                   </div>
                   <Badge 
@@ -439,7 +451,7 @@ export default function CalendarView() {
                     className={`shrink-0 ${
                       currentAppointment?.status === 'concluido' 
                         ? 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20' 
-                        : 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20'
+                        : 'bg-primary/10 text-primary border-primary/20'
                     }`}
                   >
                     {currentAppointment?.status === 'concluido' ? 'Concluído' : 'Pendente'}

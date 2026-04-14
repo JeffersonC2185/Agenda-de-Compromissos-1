@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import api from '@/src/lib/api';
 import { motion } from 'motion/react';
 import { LogIn } from 'lucide-react';
+import Logo from './Logo';
 
 interface LoginProps {
   onLogin: (user: any, token: string) => void;
@@ -35,7 +36,7 @@ export default function Login({ onLogin }: LoginProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -43,10 +44,8 @@ export default function Login({ onLogin }: LoginProps) {
       >
         <Card className="shadow-xl">
           <CardHeader className="space-y-1 text-center">
-            <div className="flex justify-center mb-2">
-              <div className="p-3 bg-blue-100 rounded-full">
-                <LogIn className="h-6 w-6 text-blue-600" />
-              </div>
+            <div className="flex justify-center mb-4">
+              <Logo className="h-16" />
             </div>
             <CardTitle className="text-2xl font-bold">Acesso ao Sistema</CardTitle>
             <p className="text-sm text-muted-foreground">Entre com suas credenciais para gerenciar sua agenda</p>
@@ -78,7 +77,7 @@ export default function Login({ onLogin }: LoginProps) {
                 {loading ? 'Entrando...' : 'Entrar'}
               </Button>
             </form>
-            <div className="mt-6 p-4 bg-blue-50 rounded-md text-xs text-blue-700">
+            <div className="mt-6 p-4 bg-secondary rounded-md text-xs text-secondary-foreground">
               <p className="font-bold mb-1">Acesso Admin (Seed):</p>
               <p>E-mail: admin@agenda.com</p>
               <p>Senha: admin123</p>

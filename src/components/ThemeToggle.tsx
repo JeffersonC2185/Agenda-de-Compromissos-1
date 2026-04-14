@@ -29,13 +29,13 @@ export default function ThemeToggle() {
       variant="outline"
       size="icon"
       onClick={toggleTheme}
-      className="rounded-full w-10 h-10 border-slate-200 dark:border-slate-800"
+      className="rounded-full w-10 h-10"
       title={theme === 'light' ? 'Mudar para tema escuro' : 'Mudar para tema claro'}
     >
       {theme === 'light' ? (
-        <Moon className="h-[1.2rem] w-[1.2rem] text-slate-700" />
+        <Moon className="h-[1.2rem] w-[1.2rem] text-primary" />
       ) : (
-        <Sun className="h-[1.2rem] w-[1.2rem] text-amber-400" />
+        <Sun className="h-[1.2rem] w-[1.2rem] text-accent" />
       )}
       <span className="sr-only">Alternar tema</span>
     </Button>

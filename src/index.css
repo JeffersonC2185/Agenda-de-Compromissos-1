@@ -38,7 +38,7 @@
 
 /* Custom "Novo Compromisso" Button */
 .fc .fc-novoCompromisso-button {
-  @apply !bg-blue-600 !text-white !border-blue-600 hover:!bg-blue-700 hover:!border-blue-700 !opacity-100;
+  @apply !bg-primary !text-primary-foreground !border-primary hover:!opacity-90 !opacity-100;
 }
 
 /* Button Grouping */
@@ -52,7 +52,7 @@
 
 /* Today Highlight */
 .fc .fc-day-today {
-  @apply !bg-blue-50/30 dark:!bg-blue-900/10;
+  @apply !bg-accent/10 dark:!bg-accent/20;
 }
 
 .fc .fc-day-today .fc-daygrid-day-number {
@@ -69,6 +69,50 @@
 
 .fc-daygrid-day-number {
   @apply p-2 text-sm font-medium text-muted-foreground;
+}
+
+/* FullCalendar Mobile Responsiveness */
+@media (max-width: 768px) {
+  .fc .fc-toolbar {
+    @apply flex-col gap-4 items-center !mb-6;
+  }
+
+  .fc .fc-toolbar-chunk {
+    @apply flex flex-wrap justify-center gap-2;
+  }
+
+  .fc .fc-toolbar-title {
+    @apply text-base text-center;
+  }
+
+  .fc .fc-button {
+    @apply h-8 px-2 py-1 text-xs;
+  }
+
+  .fc .fc-calendarTitle-button {
+    @apply min-w-0 px-2 text-base;
+  }
+
+  .fc-header-toolbar {
+    @apply !flex-col gap-3;
+  }
+  
+  .fc-toolbar-chunk {
+    @apply !flex !flex-wrap !justify-center !gap-1;
+  }
+
+  /* Hide some buttons on very small screens if needed */
+  @media (max-width: 480px) {
+    .fc .fc-dayGridMonth-button,
+    .fc .fc-timeGridWeek-button,
+    .fc .fc-timeGridDay-button {
+      @apply px-1;
+    }
+    
+    .fc .fc-novoCompromisso-button {
+      @apply w-full mt-2;
+    }
+  }
 }
 
 .fc-event {
@@ -124,33 +168,33 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
+    --background: oklch(0.99 0.005 155);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
     --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
+    --primary: oklch(0.58 0.2 155);
     --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.94 0.03 155);
+    --secondary-foreground: oklch(0.205 0.05 155);
     --muted: oklch(0.97 0 0);
     --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
+    --accent: oklch(0.82 0.18 85);
+    --accent-foreground: oklch(0.205 0.05 155);
     --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
+    --border: oklch(0.922 0.01 155);
+    --input: oklch(0.922 0.01 155);
+    --ring: oklch(0.58 0.2 155);
+    --chart-1: oklch(0.58 0.2 155);
+    --chart-2: oklch(0.82 0.18 85);
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
     --radius: 0.625rem;
     --sidebar: oklch(0.985 0 0);
     --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary: oklch(0.58 0.2 155);
     --sidebar-primary-foreground: oklch(0.985 0 0);
     --sidebar-accent: oklch(0.97 0 0);
     --sidebar-accent-foreground: oklch(0.205 0 0);
@@ -159,33 +203,33 @@
 }
 
 .dark {
-    --background: oklch(0.145 0 0);
+    --background: oklch(0.145 0.02 155);
     --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
+    --card: oklch(0.205 0.02 155);
     --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
+    --popover: oklch(0.205 0.02 155);
     --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
+    --primary: oklch(0.65 0.18 155);
     --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
+    --secondary: oklch(0.269 0.05 155);
     --secondary-foreground: oklch(0.985 0 0);
     --muted: oklch(0.269 0 0);
     --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
+    --accent: oklch(0.82 0.18 85);
+    --accent-foreground: oklch(0.205 0.05 155);
     --destructive: oklch(0.704 0.191 22.216);
     --border: oklch(1 0 0 / 10%);
     --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
+    --ring: oklch(0.65 0.18 155);
+    --chart-1: oklch(0.65 0.18 155);
+    --chart-2: oklch(0.82 0.18 85);
     --chart-3: oklch(0.439 0 0);
     --chart-4: oklch(0.371 0 0);
     --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
+    --sidebar: oklch(0.205 0.02 155);
     --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.65 0.18 155);
+    --sidebar-primary-foreground: oklch(0.205 0 0);
     --sidebar-accent: oklch(0.269 0 0);
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);

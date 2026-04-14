@@ -127,31 +127,31 @@ export default function Reports() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-wrap items-end gap-4 mb-6">
-          <div className="flex flex-col space-y-2">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-end gap-4 mb-6">
+          <div className="flex flex-col space-y-2 w-full sm:w-auto">
             <Label>Data Inicial</Label>
             <Input
               type="date"
-              className="w-[150px] h-10"
+              className="w-full sm:w-[150px] h-10 px-3"
               value={dataInicio}
               onChange={(e) => setDataInicio(e.target.value)}
             />
           </div>
-          <div className="flex flex-col space-y-2">
+          <div className="flex flex-col space-y-2 w-full sm:w-auto">
             <Label>Data Final</Label>
             <Input
               type="date"
-              className="w-[150px] h-10"
+              className="w-full sm:w-[150px] h-10 px-3"
               value={dataFim}
               onChange={(e) => setDataFim(e.target.value)}
             />
           </div>
           
           {isAdmin && (
-            <div className="flex flex-col space-y-2">
+            <div className="flex flex-col space-y-2 w-full sm:w-auto">
               <Label>Usuário</Label>
               <Select value={filtroUsuario} onValueChange={setFiltroUsuario}>
-                <SelectTrigger className="w-[180px] h-10">
+                <SelectTrigger className="w-full sm:w-[180px] h-10 px-3 py-2">
                   <SelectValue placeholder="Todos os Usuários" />
                 </SelectTrigger>
                 <SelectContent>
@@ -164,10 +164,10 @@ export default function Reports() {
             </div>
           )}
 
-          <div className="flex flex-col space-y-2">
+          <div className="flex flex-col space-y-2 w-full sm:w-auto">
             <Label>Status</Label>
             <Select value={filtroStatus} onValueChange={setFiltroStatus}>
-              <SelectTrigger className="w-[150px] h-10">
+              <SelectTrigger className="w-full sm:w-[150px] h-10 px-3 py-2">
                 <SelectValue placeholder="Todos os Status" />
               </SelectTrigger>
               <SelectContent>
@@ -178,20 +178,20 @@ export default function Reports() {
             </Select>
           </div>
 
-          <div className="flex flex-col space-y-2">
-            <Label className="invisible">Ações</Label>
+          <div className="flex flex-col space-y-2 w-full sm:w-auto">
+            <Label className="hidden sm:block invisible">Ações &nbsp;</Label>
             <div className="flex gap-2">
-              <Button onClick={fetchRelatorio} className="h-10">
+              <Button onClick={fetchRelatorio} className="flex-1 sm:flex-none h-10">
                 <Search className="mr-2 h-4 w-4" /> Filtrar
               </Button>
-              <Button variant="outline" onClick={exportToExcel} disabled={compromissos.length === 0} className="h-10">
-                <Download className="mr-2 h-4 w-4" /> Exportar XLSX
+              <Button variant="outline" onClick={exportToExcel} disabled={compromissos.length === 0} className="flex-1 sm:flex-none h-10">
+                <Download className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Exportar</span> XLSX
               </Button>
             </div>
           </div>
         </div>
 
-        <div className="rounded-md border">
+        <div className="rounded-md border overflow-x-auto scrollbar-hide">
           <Table>
             <TableHeader>
               <TableRow>

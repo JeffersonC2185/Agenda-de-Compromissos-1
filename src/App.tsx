@@ -7,6 +7,7 @@ import UserManagement from './components/UserManagement';
 import Login from './components/Login';
 import Footer from './components/Footer';
 import ThemeToggle from './components/ThemeToggle';
+import Logo from './components/Logo';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import api from '@/src/lib/api';
@@ -50,6 +51,14 @@ export default function App() {
       }
     }
     setLoading(false);
+
+    const handleUnauthorized = () => {
+      setUser(null);
+      toast.error('Sessão expirada. Por favor, faça login novamente.');
+    };
+
+    window.addEventListener('unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('unauthorized', handleUnauthorized);
   }, []);
 
   const handleLogin = (user: User, token: string) => {
@@ -115,44 +124,44 @@ export default function App() {
         transition={{ duration: 0.5 }}
         className="max-w-7xl mx-auto space-y-8"
       >
-        <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-card p-6 rounded-xl shadow-sm border transition-colors duration-300">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-blue-600 rounded-lg">
-              <Calendar className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold tracking-tight text-foreground">Agenda de Compromissos</h1>
-              <p className="text-muted-foreground text-sm">Olá, {user.nome} ({user.role})</p>
+        <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card p-4 sm:p-6 rounded-xl shadow-sm border transition-colors duration-300">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <Logo className="h-10 sm:h-12" />
+            <div className="min-w-0 border-l pl-3 sm:pl-4">
+              <p className="text-foreground font-medium text-sm sm:text-base truncate">Olá, {user.nome}</p>
+              <p className="text-muted-foreground text-[10px] sm:text-xs truncate uppercase tracking-wider">{user.role}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 justify-end">
             <ThemeToggle />
-            <Button variant="outline" size="sm" onClick={() => setIsProfileModalOpen(true)} className="text-muted-foreground">
-              <Settings className="h-4 w-4 mr-2" /> Perfil
+            <Button variant="outline" size="sm" onClick={() => setIsProfileModalOpen(true)} className="text-muted-foreground h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm">
+              <Settings className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Perfil</span>
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setIsLogoutDialogOpen(true)} className="text-muted-foreground">
-              <LogOut className="h-4 w-4 mr-2" /> Sair
+            <Button variant="outline" size="sm" onClick={() => setIsLogoutDialogOpen(true)} className="text-muted-foreground h-8 sm:h-9 px-2 sm:px-3 text-xs sm:text-sm">
+              <LogOut className="h-3.5 w-3.5 sm:h-4 sm:w-4 mr-1 sm:mr-2" /> <span className="hidden sm:inline">Sair</span>
             </Button>
           </div>
         </header>
 
         <Tabs defaultValue="calendar" className="w-full space-y-6">
-          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-4 max-w-xl' : 'grid-cols-3 max-w-md'}`}>
-            <TabsTrigger value="calendar" className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" /> Calendário
-            </TabsTrigger>
-            <TabsTrigger value="dashboard" className="flex items-center gap-2">
-              <LayoutDashboard className="h-4 w-4" /> Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="reports" className="flex items-center gap-2">
-              <FileText className="h-4 w-4" /> Relatórios
-            </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="users" className="flex items-center gap-2">
-                <Users className="h-4 w-4" /> Usuários
+          <div className="overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide">
+            <TabsList className={`inline-flex w-auto min-w-full sm:w-full sm:grid ${isAdmin ? 'sm:grid-cols-4 sm:max-w-xl' : 'sm:grid-cols-3 sm:max-w-md'} h-10 sm:h-11 p-1`}>
+              <TabsTrigger value="calendar" className="flex items-center gap-2 whitespace-nowrap px-3 sm:px-4">
+                <Calendar className="h-4 w-4 shrink-0" /> <span className="text-xs sm:text-sm">Calendário</span>
               </TabsTrigger>
-            )}
-          </TabsList>
+              <TabsTrigger value="dashboard" className="flex items-center gap-2 whitespace-nowrap px-3 sm:px-4">
+                <LayoutDashboard className="h-4 w-4 shrink-0" /> <span className="text-xs sm:text-sm">Dashboard</span>
+              </TabsTrigger>
+              <TabsTrigger value="reports" className="flex items-center gap-2 whitespace-nowrap px-3 sm:px-4">
+                <FileText className="h-4 w-4 shrink-0" /> <span className="text-xs sm:text-sm">Relatórios</span>
+              </TabsTrigger>
+              {isAdmin && (
+                <TabsTrigger value="users" className="flex items-center gap-2 whitespace-nowrap px-3 sm:px-4">
+                  <Users className="h-4 w-4 shrink-0" /> <span className="text-xs sm:text-sm">Usuários</span>
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
 
           <TabsContent value="calendar" className="border-none p-0 outline-none">
             <CalendarView />
@@ -179,7 +188,7 @@ export default function App() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <UserCircle className="h-5 w-5 text-blue-600" /> Meu Perfil
+              <UserCircle className="h-5 w-5 text-primary" /> Meu Perfil
             </DialogTitle>
           </DialogHeader>
           <form onSubmit={handleUpdateProfile} className="space-y-4 py-4">
@@ -187,6 +196,7 @@ export default function App() {
               <Label htmlFor="profile-nome">Nome</Label>
               <Input 
                 id="profile-nome" 
+                className="h-10"
                 value={profileNome} 
                 onChange={(e) => setProfileNome(e.target.value)} 
                 required 
@@ -209,9 +219,9 @@ export default function App() {
                 <Input 
                   id="profile-nascimento" 
                   type="date"
+                  className="pl-10 h-10"
                   value={profileDataNascimento} 
                   onChange={(e) => setProfileDataNascimento(e.target.value)} 
-                  className="pl-10"
                 />
               </div>
             </div>
@@ -220,6 +230,7 @@ export default function App() {
               <Input 
                 id="profile-password" 
                 type="password" 
+                className="h-10"
                 value={profilePassword} 
                 onChange={(e) => setProfilePassword(e.target.value)} 
               />
