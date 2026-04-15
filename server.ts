@@ -3,10 +3,12 @@ import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
 import { createServer as createViteServer } from "vite";
-import { PrismaClient, Role } from "@prisma/client";
+import { PrismaClient, Role, UserStatus } from "@prisma/client";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import nodemailer from "nodemailer";
+import { v4 as uuidv4 } from "uuid";
 
 dotenv.config();
 
@@ -17,6 +19,49 @@ const prisma = new PrismaClient();
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
+
+// Configuração do Nodemailer
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT) || 587,
+  secure: process.env.SMTP_SECURE === "true",
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
+
+const sendConfirmationEmail = async (email: string, token: string) => {
+  const confirmLink = `${process.env.APP_URL || "http://localhost:3000"}/confirmar?token=${token}`;
+  
+  const mailOptions = {
+    from: `"SegAgenda" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject: "Confirmação de E-mail - SegAgenda",
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; rounded: 8px;">
+        <h2 style="color: #00a650;">Bem-vindo ao SegAgenda!</h2>
+        <p>Para ativar sua conta e começar a gerenciar seus compromissos, clique no botão abaixo:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${confirmLink}" style="background-color: #00a650; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Confirmar E-mail</a>
+        </div>
+        <p style="font-size: 12px; color: #64748b;">Se o botão não funcionar, copie e cole o link abaixo no seu navegador:</p>
+        <p style="font-size: 12px; color: #64748b;">${confirmLink}</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="font-size: 12px; color: #94a3b8;">Este link expira em 24 horas.</p>
+      </div>
+    `,
+  };
+
+  if (process.env.SMTP_HOST) {
+    await transporter.sendMail(mailOptions);
+  } else {
+    console.log("------------------------------------------");
+    console.log("MOCK EMAIL SENT TO:", email);
+    console.log("CONFIRMATION LINK:", confirmLink);
+    console.log("------------------------------------------");
+  }
+};
 
 app.use(cors());
 app.use(express.json());
@@ -48,8 +93,12 @@ app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.ativo) {
-      return res.status(401).json({ error: "Usuário não encontrado ou inativo" });
+    if (!user) {
+      return res.status(401).json({ error: "Usuário não encontrado" });
+    }
+
+    if (user.status === UserStatus.pendente || !user.ativo) {
+      return res.status(401).json({ error: "Sua conta ainda não foi ativada. Verifique seu e-mail." });
     }
 
     const validPassword = await bcrypt.compare(password, user.password);
@@ -75,6 +124,95 @@ app.post("/api/auth/login", async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: "Erro no login" });
+  }
+});
+
+app.post("/api/auth/register", async (req, res) => {
+  const { nome, email, password } = req.body;
+  try {
+    const existingUser = await prisma.user.findUnique({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ error: "E-mail já cadastrado" });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const token = uuidv4();
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 24);
+
+    await prisma.user.create({
+      data: {
+        nome,
+        email,
+        password: hashedPassword,
+        role: "cliente",
+        status: "pendente",
+        ativo: false,
+        tokenConfirmacao: token,
+        tokenExpiracao: expires,
+      },
+    });
+
+    await sendConfirmationEmail(email, token);
+
+    res.status(201).json({ message: "Cadastro realizado! Verifique seu e-mail para ativar sua conta." });
+  } catch (error) {
+    console.error("Erro no registro:", error);
+    res.status(500).json({ error: "Erro ao realizar cadastro" });
+  }
+});
+
+app.get("/api/auth/confirmar", async (req, res) => {
+  const { token } = req.query;
+  try {
+    const user = await prisma.user.findUnique({ where: { tokenConfirmacao: token as string } });
+    if (!user) {
+      return res.status(400).json({ error: "Token de confirmação inválido ou já utilizado." });
+    }
+
+    if (user.tokenExpiracao && new Date() > user.tokenExpiracao) {
+      return res.status(400).json({ error: "Este link de confirmação expirou. Por favor, solicite um novo." });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        status: "ativo",
+        ativo: true,
+        tokenConfirmacao: null,
+        tokenExpiracao: null,
+      },
+    });
+
+    res.json({ message: "E-mail confirmado com sucesso! Você já pode fazer login." });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao confirmar e-mail" });
+  }
+});
+
+app.post("/api/auth/reenviar-confirmacao", async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+    if (user.status === "ativo") return res.status(400).json({ error: "Esta conta já está ativa" });
+
+    const token = uuidv4();
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 24);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        tokenConfirmacao: token,
+        tokenExpiracao: expires,
+      },
+    });
+
+    await sendConfirmationEmail(email, token);
+    res.json({ message: "E-mail de confirmação reenviado!" });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao reenviar e-mail" });
   }
 });
 
@@ -365,6 +503,8 @@ async function seedAdmin() {
         password: hashedPassword,
         nome: "Administrador",
         role: "administrador",
+        status: "ativo",
+        ativo: true
       },
     });
     console.log("Admin user seeded: test@segnorte.com.br / test123");

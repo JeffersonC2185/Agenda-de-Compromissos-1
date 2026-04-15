@@ -40,6 +40,26 @@ export default function App() {
   const [profileLoading, setProfileLoading] = useState(false);
 
   useEffect(() => {
+    // Check for email confirmation token in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const confirmToken = urlParams.get('token');
+    const isConfirmPath = window.location.pathname === '/confirmar';
+
+    if (confirmToken && isConfirmPath) {
+      const confirmEmail = async () => {
+        try {
+          const response = await api.get(`/auth/confirmar?token=${confirmToken}`);
+          toast.success(response.data.message, { duration: 6000 });
+          // Clear URL parameters and path
+          window.history.replaceState({}, document.title, "/");
+        } catch (error: any) {
+          toast.error(error.response?.data?.error || 'Erro ao confirmar e-mail', { duration: 6000 });
+          window.history.replaceState({}, document.title, "/");
+        }
+      };
+      confirmEmail();
+    }
+
     const savedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
     if (savedUser && token) {
