@@ -9,8 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Search, Download, User as UserIcon, Filter, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { FileText, Search, Download, User as UserIcon, Filter, ArrowUpDown, ArrowUp, ArrowDown, FileDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 type SortConfig = {
   key: keyof Compromisso | 'usuario';
@@ -74,6 +76,75 @@ export default function Reports() {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Relatório");
     XLSX.writeFile(workbook, `relatorio_compromissos_${dataInicio}_a_${dataFim}.xlsx`);
+  };
+
+  const exportToPDF = () => {
+    const doc = new jsPDF({
+      orientation: 'landscape',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const title = "Relatório de Compromissos";
+    const period = `Período: ${format(new Date(dataInicio + 'T12:00:00'), 'dd/MM/yyyy')} até ${format(new Date(dataFim + 'T12:00:00'), 'dd/MM/yyyy')}`;
+    
+    // Header
+    doc.setFontSize(18);
+    doc.setTextColor(0, 166, 80); // SegNorte Green
+    doc.text(title, 14, 20);
+    
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(period, 14, 28);
+    
+    if (isAdmin && filtroUsuario !== 'todos') {
+      const userNome = usuarios.find(u => u.id.toString() === filtroUsuario)?.nome || '';
+      doc.text(`Filtro Usuário: ${userNome}`, 14, 34);
+    }
+
+    const tableColumn = ["Data", "Hora", "Título", "Descrição", "Usuário", "Retroativo", "Status"];
+    const tableRows = sortedCompromissos.map(c => {
+      const dateParts = c.data.split('T')[0].split('-');
+      const formattedDate = `${dateParts[2]}/${dateParts[1]}/${dateParts[0]}`;
+      
+      return [
+        formattedDate,
+        c.hora,
+        c.titulo,
+        c.descricao || '',
+        c.user?.nome || 'N/A',
+        c.retroativo ? 'Sim' : 'Não',
+        c.status === 'concluido' ? 'Concluído' : 'Pendente'
+      ];
+    });
+
+    autoTable(doc, {
+      head: [tableColumn],
+      body: tableRows,
+      startY: isAdmin && filtroUsuario !== 'todos' ? 40 : 35,
+      theme: 'striped',
+      headStyles: { fillColor: [0, 166, 80], textColor: [255, 255, 255] },
+      styles: { fontSize: 9, cellPadding: 3 },
+      columnStyles: {
+        0: { cellWidth: 25 }, // Data
+        1: { cellWidth: 20 }, // Hora
+        2: { cellWidth: 45 }, // Título
+        3: { cellWidth: 'auto' }, // Descrição (flex)
+        4: { cellWidth: 35 }, // Usuário
+        5: { cellWidth: 20 }, // Retroativo
+        6: { cellWidth: 25 }, // Status
+      },
+      didDrawPage: (data) => {
+        // Footer
+        const str = `Página ${data.pageNumber}`;
+        doc.setFontSize(10);
+        const pageSize = doc.internal.pageSize;
+        const pageHeight = pageSize.height ? pageSize.height : pageSize.getHeight();
+        doc.text(str, data.settings.margin.left, pageHeight - 10);
+      }
+    });
+
+    doc.save(`relatorio_compromissos_${dataInicio}_a_${dataFim}.pdf`);
   };
 
   useEffect(() => {
@@ -196,6 +267,14 @@ export default function Reports() {
               >
                 <Download className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Exportar</span> XLSX
               </Button>
+              <Button 
+                variant="outline" 
+                onClick={exportToPDF} 
+                disabled={compromissos.length === 0} 
+                className="!h-10 px-4 border-muted-foreground/20 hover:bg-muted transition-all"
+              >
+                <FileDown className="mr-2 h-4 w-4" /> <span className="hidden sm:inline">Exportar</span> PDF
+              </Button>
             </div>
           </div>
         </div>
@@ -247,7 +326,7 @@ export default function Reports() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={c.status === 'concluido' ? 'default' : 'secondary'}>
+                      <Badge variant={c.status === 'concluido' ? 'default' : 'warning'}>
                         {c.status === 'concluido' ? 'Concluído' : 'Pendente'}
                       </Badge>
                     </TableCell>
