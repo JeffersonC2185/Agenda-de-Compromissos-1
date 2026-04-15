@@ -10,7 +10,8 @@ import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import { v4 as uuidv4 } from "uuid";
 import cron from "node-cron";
-import { addHours, subMinutes, addMinutes } from "date-fns";
+import { addHours, subMinutes, addMinutes, format as formatDate } from "date-fns";
+import { toZonedTime, format } from "date-fns-tz";
 
 dotenv.config();
 
@@ -139,6 +140,32 @@ const sendResetPasswordEmail = async (email: string, token: string) => {
       to: email,
       link: resetLink
     });
+  }
+};
+
+const sendReminderEmail = async (email: string, nome: string, titulo: string, hora: string, descricao: string | null) => {
+  const mailOptions = {
+    from: `"SegAgenda" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject: "Lembrete de compromisso - SegAgenda",
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #00a650;">Olá, ${nome}!</h2>
+        <p>Este é um lembrete de que você possui um compromisso agendado para hoje às <strong>${hora}</strong>.</p>
+        <p><strong>Compromisso:</strong> ${titulo}</p>
+        ${descricao ? `<p><strong>Descrição:</strong> ${descricao}</p>` : ''}
+        <p>Por favor, não se esqueça.</p>
+        <p>Se precisar reagendar, entre no sistema.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="font-size: 12px; color: #94a3b8;">Atenciosamente,<br>Equipe SegAgenda</p>
+      </div>
+    `,
+  };
+
+  if (process.env.SMTP_HOST) {
+    await transporter.sendMail(mailOptions);
+  } else {
+    logger('INFO', 'EmailService', `[MOCK] Lembrete enviado para ${email}: ${titulo} às ${hora}`);
   }
 };
 
@@ -681,22 +708,24 @@ async function seedAdmin() {
 
 // Cron Job para Lembretes de E-mail (executa a cada minuto)
 cron.schedule("* * * * *", async () => {
-  logger('DEBUG', 'Cron', "Iniciando verificação de compromissos para lembretes...");
+  const timeZone = 'America/Sao_Paulo';
+  const now = toZonedTime(new Date(), timeZone);
+  const nowTimestamp = now.getTime();
+  
+  logger('DEBUG', 'Cron', `Iniciando verificação de compromissos. Hora atual (${timeZone}): ${format(now, 'yyyy-MM-dd HH:mm:ss')}`);
+  
   try {
-    const now = new Date();
-    const oneHourFromNow = addHours(now, 1);
-    
-    // Janela de 5 minutos para garantir que não percamos nenhum compromisso
-    const startWindow = subMinutes(oneHourFromNow, 2);
-    const endWindow = addMinutes(oneHourFromNow, 2);
+    // Buscamos compromissos pendentes que ainda não foram notificados
+    // Filtramos por data (hoje e amanhã para garantir cobertura)
+    const todayStr = format(now, 'yyyy-MM-dd');
+    const tomorrowStr = format(addHours(now, 24), 'yyyy-MM-dd');
 
     const upcomingAppointments = await prisma.compromisso.findMany({
       where: {
         status: "pendente",
         notificadoEmail: false,
         data: {
-          gte: new Date(startWindow.toISOString().split('T')[0]),
-          lte: new Date(endWindow.toISOString().split('T')[0]),
+          in: [new Date(todayStr), new Date(tomorrowStr)]
         },
         user: {
           notificacaoEmail: true,
@@ -708,58 +737,47 @@ cron.schedule("* * * * *", async () => {
       }
     });
 
+    if (upcomingAppointments.length > 0) {
+      logger('DEBUG', 'Cron', `Encontrados ${upcomingAppointments.length} compromissos pendentes para análise.`);
+    }
+
     for (const appo of upcomingAppointments) {
-      // Verificar a hora exata
-      const [hours, minutes] = appo.hora.split(":").map(Number);
-      const appoDateTime = new Date(appo.data);
-      appoDateTime.setHours(hours, minutes, 0, 0);
-
-      const diffMinutes = (appoDateTime.getTime() - now.getTime()) / (1000 * 60);
-
-      // Se estiver entre 55 e 65 minutos de distância
-      if (diffMinutes >= 55 && diffMinutes <= 65) {
-        logger('INFO', 'Cron', `Enviando lembrete para ${appo.user.email} (Compromisso: ${appo.titulo})`);
+      try {
+        // appo.data é um objeto Date (00:00:00 UTC)
+        // appo.hora é uma string "HH:mm"
+        const appoDateStr = formatDate(appo.data, 'yyyy-MM-dd');
         
-        const mailOptions = {
-          from: `"SegAgenda" <${process.env.SMTP_USER}>`,
-          to: appo.user.email,
-          subject: "Lembrete de compromisso",
-          html: `
-            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
-              <h2 style="color: #00a650;">Olá, ${appo.user.nome}!</h2>
-              <p>Este é um lembrete de que você possui um compromisso agendado para hoje às <strong>${appo.hora}</strong>.</p>
-              <p><strong>Compromisso:</strong> ${appo.titulo}</p>
-              ${appo.descricao ? `<p><strong>Descrição:</strong> ${appo.descricao}</p>` : ''}
-              <p>Por favor, não se esqueça.</p>
-              <p>Se precisar reagendar, entre no sistema.</p>
-              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
-              <p style="font-size: 12px; color: #94a3b8;">Atenciosamente,<br>Equipe SegAgenda</p>
-            </div>
-          `,
-        };
+        // Criamos a data/hora do compromisso no fuso horário correto
+        const appoDateTime = toZonedTime(new Date(`${appoDateStr}T${appo.hora}:00`), timeZone);
+        const appoTimestamp = appoDateTime.getTime();
 
-        try {
-          if (process.env.SMTP_HOST) {
-            await transporter.sendMail(mailOptions);
-            logger('INFO', 'Cron', `E-mail de lembrete enviado para: ${appo.user.email}`);
-          } else {
-            logger('INFO', 'Cron', `MOCK REMINDER SENT TO: ${appo.user.email}`);
-          }
+        const diffMinutes = (appoTimestamp - nowTimestamp) / (1000 * 60);
 
+        // Log detalhado para cada compromisso analisado
+        logger('DEBUG', 'Cron', `Analisando: "${appo.titulo}" às ${appo.hora} em ${appoDateStr}. Diferença: ${diffMinutes.toFixed(2)} min`);
+
+        // Janela de 55 a 65 minutos (aproximadamente 1 hora antes)
+        if (diffMinutes >= 55 && diffMinutes <= 65) {
+          logger('INFO', 'Cron', `DISPARANDO LEMBRETE: ${appo.user.email} | ${appo.titulo} às ${appo.hora}`);
+          
+          await sendReminderEmail(appo.user.email, appo.user.nome, appo.titulo, appo.hora, appo.descricao);
+          
           await prisma.compromisso.update({
             where: { id: appo.id },
             data: {
               notificadoEmail: true,
-              dataNotificacaoEmail: new Date()
+              dataNotificacaoEmail: now
             }
           });
-        } catch (mailError: any) {
-          logger('ERROR', 'Cron', `Falha ao enviar lembrete para ${appo.user.email}: ${mailError.message}`);
+          
+          logger('INFO', 'Cron', `Lembrete enviado e marcado como notificado para: ${appo.user.email}`);
         }
+      } catch (itemError: any) {
+        logger('ERROR', 'Cron', `Erro ao processar compromisso ID ${appo.id}: ${itemError.message}`);
       }
     }
   } catch (error: any) {
-    logger('ERROR', 'Cron', `Erro no cron job de lembretes: ${error.message}`);
+    logger('ERROR', 'Cron', `Erro fatal no cron job de lembretes: ${error.message}`);
   }
 });
 
