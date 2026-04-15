@@ -15,6 +15,8 @@ import { Calendar, LayoutDashboard, FileText, Users, LogOut, User as UserIcon, S
 import { motion } from 'motion/react';
 import { User } from './types';
 import { Button } from '@/components/ui/button';
+import { Switch } from '@/components/ui/switch';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
@@ -37,13 +39,19 @@ export default function App() {
   const [profileNome, setProfileNome] = useState('');
   const [profileDataNascimento, setProfileDataNascimento] = useState('');
   const [profilePassword, setProfilePassword] = useState('');
+  const [profileNotificacaoEmail, setProfileNotificacaoEmail] = useState(true);
   const [profileLoading, setProfileLoading] = useState(false);
+  const [resetToken, setResetToken] = useState<string | null>(null);
+  const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [resetLoading, setResetLoading] = useState(false);
 
   useEffect(() => {
     // Check for email confirmation token in URL
     const urlParams = new URLSearchParams(window.location.search);
     const confirmToken = urlParams.get('token');
     const isConfirmPath = window.location.pathname === '/confirmar';
+    const isResetPath = window.location.pathname === '/redefinir-senha';
 
     if (confirmToken && isConfirmPath) {
       const confirmEmail = async () => {
@@ -60,12 +68,17 @@ export default function App() {
       confirmEmail();
     }
 
+    if (confirmToken && isResetPath) {
+      setResetToken(confirmToken);
+    }
+
     const savedUser = localStorage.getItem('user');
     const token = localStorage.getItem('token');
     if (savedUser && token) {
       const parsedUser = JSON.parse(savedUser);
       setUser(parsedUser);
       setProfileNome(parsedUser.nome);
+      setProfileNotificacaoEmail(parsedUser.notificacaoEmail ?? true);
       if (parsedUser.dataNascimento) {
         setProfileDataNascimento(parsedUser.dataNascimento.split('T')[0]);
       }
@@ -84,6 +97,7 @@ export default function App() {
   const handleLogin = (user: User, token: string) => {
     setUser(user);
     setProfileNome(user.nome);
+    setProfileNotificacaoEmail(user.notificacaoEmail ?? true);
     if (user.dataNascimento) {
       setProfileDataNascimento(user.dataNascimento.split('T')[0]);
     }
@@ -101,7 +115,10 @@ export default function App() {
     if (!user) return;
     setProfileLoading(true);
     try {
-      const data: any = { nome: profileNome };
+      const data: any = { 
+        nome: profileNome,
+        notificacaoEmail: profileNotificacaoEmail
+      };
       if (profilePassword) data.password = profilePassword;
       data.dataNascimento = profileDataNascimento || null;
       
@@ -120,6 +137,33 @@ export default function App() {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (resetPassword !== resetConfirmPassword) {
+      return toast.error('As senhas não coincidem');
+    }
+    if (resetPassword.length < 6) {
+      return toast.error('A senha deve ter no mínimo 6 caracteres');
+    }
+
+    setResetLoading(true);
+    try {
+      const response = await api.post('/auth/redefinir-senha', {
+        token: resetToken,
+        password: resetPassword
+      });
+      toast.success(response.data.message);
+      setResetToken(null);
+      setResetPassword('');
+      setResetConfirmPassword('');
+      window.history.replaceState({}, document.title, "/");
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Erro ao redefinir senha');
+    } finally {
+      setResetLoading(false);
+    }
+  };
+
   if (loading) return null;
 
   if (!user) {
@@ -128,7 +172,65 @@ export default function App() {
         <div className="absolute top-4 right-4">
           <ThemeToggle />
         </div>
-        <Login onLogin={handleLogin} />
+        {resetToken ? (
+          <div className="min-h-screen flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="w-full max-w-md"
+            >
+              <Card className="shadow-xl">
+                <CardHeader className="space-y-1 text-center">
+                  <div className="flex justify-center mb-4">
+                    <Logo className="h-16" />
+                  </div>
+                  <CardTitle className="text-2xl font-bold">Nova Senha</CardTitle>
+                  <p className="text-sm text-muted-foreground">Crie uma nova senha para sua conta</p>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleResetPassword} className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="new-password">Nova Senha</Label>
+                      <Input
+                        id="new-password"
+                        type="password"
+                        value={resetPassword}
+                        onChange={(e) => setResetPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirm-new-password">Confirmar Nova Senha</Label>
+                      <Input
+                        id="confirm-new-password"
+                        type="password"
+                        value={resetConfirmPassword}
+                        onChange={(e) => setResetConfirmPassword(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={resetLoading}>
+                      {resetLoading ? 'Alterando...' : 'Alterar Senha'}
+                    </Button>
+                    <Button 
+                      type="button" 
+                      variant="ghost" 
+                      className="w-full text-xs"
+                      onClick={() => {
+                        setResetToken(null);
+                        window.history.replaceState({}, document.title, "/");
+                      }}
+                    >
+                      Voltar para Login
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        ) : (
+          <Login onLogin={handleLogin} />
+        )}
         <Toaster position="top-right" />
       </div>
     );
@@ -253,6 +355,17 @@ export default function App() {
                 className="h-10"
                 value={profilePassword} 
                 onChange={(e) => setProfilePassword(e.target.value)} 
+              />
+            </div>
+            <div className="flex items-center justify-between space-x-2 py-2 border-t pt-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="notif-email">Lembretes por E-mail</Label>
+                <p className="text-[10px] text-muted-foreground">Receba um lembrete 1 hora antes do compromisso.</p>
+              </div>
+              <Switch 
+                id="notif-email" 
+                checked={profileNotificacaoEmail} 
+                onCheckedChange={setProfileNotificacaoEmail} 
               />
             </div>
             <div className="flex justify-end gap-2 pt-4">

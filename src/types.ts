@@ -5,6 +5,7 @@ export interface User {
   role: 'administrador' | 'cliente';
   ativo: boolean;
   dataNascimento?: string | null;
+  notificacaoEmail: boolean;
 }
 
 export interface Compromisso {

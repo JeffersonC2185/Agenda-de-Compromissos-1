@@ -15,8 +15,11 @@ model User {
   role         Role          @default(cliente)
   status       UserStatus    @default(pendente)
   ativo        Boolean       @default(true)
+  notificacaoEmail Boolean   @default(true) @map("notificacao_email")
   tokenConfirmacao String?   @unique @map("token_confirmacao")
   tokenExpiracao   DateTime? @map("token_expiracao")
+  resetToken       String?   @unique @map("reset_token")
+  resetTokenExpiracao DateTime? @map("reset_token_expiracao")
   dataNascimento DateTime?   @db.Date @map("data_nascimento")
   compromissos Compromisso[]
   createdAt    DateTime      @default(now()) @map("created_at")
@@ -38,6 +41,8 @@ model Compromisso {
   hora      String   @db.VarChar(10) // HH:mm
   status    Status   @default(pendente)
   retroativo Boolean  @default(false)
+  notificadoEmail Boolean @default(false) @map("notificado_email")
+  dataNotificacaoEmail DateTime? @map("data_notificacao_email")
   userId    Int      @map("user_id")
   user      User     @relation(fields: [userId], references: [id])
   createdAt DateTime @default(now()) @map("created_at")

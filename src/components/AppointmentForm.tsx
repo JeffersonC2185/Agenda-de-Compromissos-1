@@ -95,6 +95,9 @@ export default function AppointmentForm({ appointment, onSave, onCancel }: Appoi
           onChange={(e) => setDescricao(e.target.value)}
           placeholder="Detalhes do compromisso..."
         />
+        <p className="text-[10px] text-muted-foreground italic">
+          * Você receberá um lembrete por e-mail 1 hora antes deste compromisso.
+        </p>
       </div>
       <div className="flex justify-end gap-2 pt-4">
         <Button type="button" variant="outline" onClick={onCancel}>

@@ -6,9 +6,9 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import api from '@/src/lib/api';
 import { motion } from 'motion/react';
-import { LogIn, UserPlus, Mail } from 'lucide-react';
+import { LogIn, UserPlus, Mail, KeyRound } from 'lucide-react';
 import Logo from './Logo';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 
 interface LoginProps {
   onLogin: (user: any, token: string) => void;
@@ -22,6 +22,9 @@ export default function Login({ onLogin }: LoginProps) {
   const [registerData, setRegisterData] = useState({ nome: '', email: '', password: '', confirmPassword: '' });
   const [registerLoading, setRegisterLoading] = useState(false);
   const [showResend, setShowResend] = useState(false);
+  const [isForgotOpen, setIsForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -82,6 +85,21 @@ export default function Login({ onLogin }: LoginProps) {
     }
   };
 
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      const response = await api.post('/auth/esqueci-senha', { email: forgotEmail });
+      toast.success(response.data.message);
+      setIsForgotOpen(false);
+      setForgotEmail('');
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Erro ao processar solicitação');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <motion.div
@@ -124,6 +142,41 @@ export default function Login({ onLogin }: LoginProps) {
                 {loading ? 'Entrando...' : 'Entrar'}
               </Button>
             </form>
+
+            <div className="mt-2 text-center">
+              <Dialog open={isForgotOpen} onOpenChange={setIsForgotOpen}>
+                <DialogTrigger render={<Button variant="link" className="text-xs text-muted-foreground hover:text-primary p-0 h-auto" />}>
+                  Esqueci minha senha
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[400px]">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <KeyRound className="h-5 w-5 text-primary" />
+                      Recuperar Senha
+                    </DialogTitle>
+                    <DialogDescription>
+                      Informe seu e-mail para receber um link de redefinição de senha.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleForgotPassword} className="space-y-4 py-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="forgot-email">E-mail</Label>
+                      <Input
+                        id="forgot-email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={forgotEmail}
+                        onChange={(e) => setForgotEmail(e.target.value)}
+                        required
+                      />
+                    </div>
+                    <Button type="submit" className="w-full" disabled={forgotLoading}>
+                      {forgotLoading ? 'Enviando...' : 'Enviar link de recuperação'}
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
 
             <div className="mt-4 space-y-2">
               <Dialog open={isRegisterOpen} onOpenChange={setIsRegisterOpen}>

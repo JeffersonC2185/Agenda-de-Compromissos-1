@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import api from '@/src/lib/api';
 import { User } from '@/src/types';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
 
 export default function UserManagement() {
   const [users, setUsers] = useState<User[]>([]);
@@ -29,6 +30,7 @@ export default function UserManagement() {
   const [editPassword, setEditPassword] = useState('');
   const [editDataNascimento, setEditDataNascimento] = useState('');
   const [editRole, setEditRole] = useState<'administrador' | 'cliente'>('cliente');
+  const [editNotificacaoEmail, setEditNotificacaoEmail] = useState(true);
 
   const fetchUsers = async () => {
     try {
@@ -84,6 +86,7 @@ export default function UserManagement() {
     setEditEmail(user.email);
     setEditRole(user.role);
     setEditDataNascimento(user.dataNascimento ? user.dataNascimento.split('T')[0] : '');
+    setEditNotificacaoEmail(user.notificacaoEmail ?? true);
     setEditPassword('');
     setIsEditModalOpen(true);
   };
@@ -97,7 +100,8 @@ export default function UserManagement() {
         nome: editNome, 
         email: editEmail, 
         role: editRole,
-        dataNascimento: editDataNascimento || null
+        dataNascimento: editDataNascimento || null,
+        notificacaoEmail: editNotificacaoEmail
       };
       if (editPassword) data.password = editPassword;
       
@@ -302,6 +306,17 @@ export default function UserManagement() {
                   <SelectItem value="administrador">Administrador</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div className="flex items-center justify-between space-x-2 py-2 border-t pt-4">
+              <div className="space-y-0.5">
+                <Label htmlFor="edit-notif-email">Lembretes por E-mail</Label>
+                <p className="text-[10px] text-muted-foreground">Receba um lembrete 1 hora antes do compromisso.</p>
+              </div>
+              <Switch 
+                id="edit-notif-email" 
+                checked={editNotificacaoEmail} 
+                onCheckedChange={setEditNotificacaoEmail} 
+              />
             </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>

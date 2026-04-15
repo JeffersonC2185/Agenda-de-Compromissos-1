@@ -9,13 +9,18 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import { v4 as uuidv4 } from "uuid";
+import cron from "node-cron";
+import { addHours, subMinutes, addMinutes } from "date-fns";
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: ['error', 'warn'],
+  datasourceUrl: process.env.DATABASE_URL ? `${process.env.DATABASE_URL}${process.env.DATABASE_URL.includes('?') ? '&' : '?'}connection_limit=2&pool_timeout=20` : undefined
+});
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
@@ -59,6 +64,40 @@ const sendConfirmationEmail = async (email: string, token: string) => {
     console.log("------------------------------------------");
     console.log("MOCK EMAIL SENT TO:", email);
     console.log("CONFIRMATION LINK:", confirmLink);
+    console.log("------------------------------------------");
+  }
+};
+
+const sendResetPasswordEmail = async (email: string, token: string) => {
+  const resetLink = `${process.env.APP_URL || "http://localhost:3000"}/redefinir-senha?token=${token}`;
+  
+  const mailOptions = {
+    from: `"SegAgenda" <${process.env.SMTP_USER}>`,
+    to: email,
+    subject: "Recuperação de senha - SegAgenda",
+    html: `
+      <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+        <h2 style="color: #00a650;">Recuperação de Senha</h2>
+        <p>Olá!</p>
+        <p>Recebemos uma solicitação para redefinir sua senha no SegAgenda.</p>
+        <p>Clique no botão abaixo para criar uma nova senha:</p>
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${resetLink}" style="background-color: #00a650; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; font-weight: bold;">Redefinir Senha</a>
+        </div>
+        <p style="font-size: 12px; color: #64748b;">Se você não solicitou isso, ignore este e-mail.</p>
+        <p style="font-size: 12px; color: #64748b;">Este link expira em 1 hora.</p>
+        <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+        <p style="font-size: 12px; color: #94a3b8;">Atenciosamente,<br>Equipe SegAgenda</p>
+      </div>
+    `,
+  };
+
+  if (process.env.SMTP_HOST) {
+    await transporter.sendMail(mailOptions);
+  } else {
+    console.log("------------------------------------------");
+    console.log("MOCK RESET EMAIL SENT TO:", email);
+    console.log("RESET LINK:", resetLink);
     console.log("------------------------------------------");
   }
 };
@@ -119,7 +158,8 @@ app.post("/api/auth/login", async (req, res) => {
         email: user.email, 
         role: user.role, 
         nome: user.nome,
-        dataNascimento: user.dataNascimento 
+        dataNascimento: user.dataNascimento,
+        notificacaoEmail: user.notificacaoEmail
       },
     });
   } catch (error) {
@@ -216,6 +256,68 @@ app.post("/api/auth/reenviar-confirmacao", async (req, res) => {
   }
 });
 
+app.post("/api/auth/esqueci-senha", async (req, res) => {
+  const { email } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { email } });
+    
+    // Always return generic message for security
+    const genericMessage = "Se o e-mail estiver cadastrado, você receberá um link de recuperação.";
+    
+    if (!user) {
+      return res.json({ message: genericMessage });
+    }
+
+    const token = uuidv4();
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 1);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        resetToken: token,
+        resetTokenExpiracao: expires,
+      },
+    });
+
+    await sendResetPasswordEmail(email, token);
+    res.json({ message: genericMessage });
+  } catch (error) {
+    console.error("Erro no esqueci-senha:", error);
+    res.status(500).json({ error: "Erro ao processar solicitação" });
+  }
+});
+
+app.post("/api/auth/redefinir-senha", async (req, res) => {
+  const { token, password } = req.body;
+  try {
+    const user = await prisma.user.findUnique({ where: { resetToken: token } });
+    
+    if (!user) {
+      return res.status(400).json({ error: "Token de recuperação inválido ou já utilizado." });
+    }
+
+    if (user.resetTokenExpiracao && new Date() > user.resetTokenExpiracao) {
+      return res.status(400).json({ error: "Este link de recuperação expirou. Por favor, solicite um novo." });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        password: hashedPassword,
+        resetToken: null,
+        resetTokenExpiracao: null,
+      },
+    });
+
+    res.json({ message: "Senha alterada com sucesso!" });
+  } catch (error) {
+    res.status(500).json({ error: "Erro ao redefinir senha" });
+  }
+});
+
 // User Management (Admin only)
 app.get("/api/users", authenticateToken, isAdmin, async (req, res) => {
   try {
@@ -279,6 +381,7 @@ app.put("/api/users/:id", authenticateToken, async (req: any, res) => {
     if (nome) data.nome = nome;
     if (password) data.password = await bcrypt.hash(password, 10);
     if (dataNascimento !== undefined) data.dataNascimento = dataNascimento ? new Date(dataNascimento) : null;
+    if (req.body.notificacaoEmail !== undefined) data.notificacaoEmail = req.body.notificacaoEmail;
     
     // Only admin can change role or email
     if (requester.role === "administrador") {
@@ -289,7 +392,7 @@ app.put("/api/users/:id", authenticateToken, async (req: any, res) => {
     const updatedUser = await prisma.user.update({
       where: { id: targetId },
       data,
-      select: { id: true, email: true, nome: true, role: true, ativo: true, dataNascimento: true },
+      select: { id: true, email: true, nome: true, role: true, ativo: true, dataNascimento: true, notificacaoEmail: true },
     });
 
     res.json(updatedUser);
@@ -511,6 +614,89 @@ async function seedAdmin() {
   }
 }
 
+// Cron Job para Lembretes de E-mail (executa a cada minuto)
+cron.schedule("* * * * *", async () => {
+  console.log("Checking for upcoming appointments to send reminders...");
+  try {
+    const now = new Date();
+    const oneHourFromNow = addHours(now, 1);
+    
+    // Janela de 5 minutos para garantir que não percamos nenhum compromisso
+    const startWindow = subMinutes(oneHourFromNow, 2);
+    const endWindow = addMinutes(oneHourFromNow, 2);
+
+    const upcomingAppointments = await prisma.compromisso.findMany({
+      where: {
+        status: "pendente",
+        notificadoEmail: false,
+        data: {
+          gte: new Date(startWindow.toISOString().split('T')[0]),
+          lte: new Date(endWindow.toISOString().split('T')[0]),
+        },
+        user: {
+          notificacaoEmail: true,
+          ativo: true
+        }
+      },
+      include: {
+        user: true
+      }
+    });
+
+    for (const appo of upcomingAppointments) {
+      // Verificar a hora exata
+      const [hours, minutes] = appo.hora.split(":").map(Number);
+      const appoDateTime = new Date(appo.data);
+      appoDateTime.setHours(hours, minutes, 0, 0);
+
+      const diffMinutes = (appoDateTime.getTime() - now.getTime()) / (1000 * 60);
+
+      // Se estiver entre 55 e 65 minutos de distância
+      if (diffMinutes >= 55 && diffMinutes <= 65) {
+        console.log(`Sending reminder to ${appo.user.email} for appointment ${appo.titulo}`);
+        
+        const mailOptions = {
+          from: `"SegAgenda" <${process.env.SMTP_USER}>`,
+          to: appo.user.email,
+          subject: "Lembrete de compromisso",
+          html: `
+            <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #e2e8f0; border-radius: 8px;">
+              <h2 style="color: #00a650;">Olá, ${appo.user.nome}!</h2>
+              <p>Este é um lembrete de que você possui um compromisso agendado para hoje às <strong>${appo.hora}</strong>.</p>
+              <p><strong>Compromisso:</strong> ${appo.titulo}</p>
+              ${appo.descricao ? `<p><strong>Descrição:</strong> ${appo.descricao}</p>` : ''}
+              <p>Por favor, não se esqueça.</p>
+              <p>Se precisar reagendar, entre no sistema.</p>
+              <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 20px 0;" />
+              <p style="font-size: 12px; color: #94a3b8;">Atenciosamente,<br>Equipe SegAgenda</p>
+            </div>
+          `,
+        };
+
+        try {
+          if (process.env.SMTP_HOST) {
+            await transporter.sendMail(mailOptions);
+          } else {
+            console.log("MOCK REMINDER SENT TO:", appo.user.email);
+          }
+
+          await prisma.compromisso.update({
+            where: { id: appo.id },
+            data: {
+              notificadoEmail: true,
+              dataNotificacaoEmail: new Date()
+            }
+          });
+        } catch (mailError) {
+          console.error(`Failed to send reminder to ${appo.user.email}:`, mailError);
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error in reminder cron job:", error);
+  }
+});
+
 // Vite middleware setup
 async function startServer() {
   try {
@@ -539,8 +725,19 @@ async function startServer() {
     });
   } catch (error) {
     console.error("Failed to start server:", error);
+    await prisma.$disconnect();
     process.exit(1);
   }
 }
+
+process.on('SIGINT', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
+
+process.on('SIGTERM', async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
 
 startServer();
