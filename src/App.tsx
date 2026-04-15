@@ -8,6 +8,7 @@ import Login from './components/Login';
 import Footer from './components/Footer';
 import ThemeToggle from './components/ThemeToggle';
 import Logo from './components/Logo';
+import Legal from './components/Legal';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import api from '@/src/lib/api';
@@ -45,6 +46,7 @@ export default function App() {
   const [resetPassword, setResetPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [resetLoading, setResetLoading] = useState(false);
+  const [showLegal, setShowLegal] = useState(false);
 
   useEffect(() => {
     // Check for email confirmation token in URL
@@ -152,19 +154,27 @@ export default function App() {
         token: resetToken,
         password: resetPassword
       });
-      toast.success(response.data.message);
+      toast.success('Senha redefinida', { 
+        description: response.data.message 
+      });
       setResetToken(null);
       setResetPassword('');
       setResetConfirmPassword('');
       window.history.replaceState({}, document.title, "/");
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Erro ao redefinir senha');
+      toast.error('Erro na redefinição', { 
+        description: error.response?.data?.error || 'Não foi possível atualizar sua senha.' 
+      });
     } finally {
       setResetLoading(false);
     }
   };
 
   if (loading) return null;
+
+  if (showLegal) {
+    return <Legal onBack={() => setShowLegal(false)} />;
+  }
 
   if (!user) {
     return (
@@ -229,7 +239,7 @@ export default function App() {
             </motion.div>
           </div>
         ) : (
-          <Login onLogin={handleLogin} />
+          <Login onLogin={handleLogin} onShowLegal={() => setShowLegal(true)} />
         )}
         <Toaster position="top-right" />
       </div>

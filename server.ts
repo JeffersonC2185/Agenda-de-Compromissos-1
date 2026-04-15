@@ -14,6 +14,25 @@ import { addHours, subMinutes, addMinutes } from "date-fns";
 
 dotenv.config();
 
+// Logger Helper
+type LogLevel = 'INFO' | 'WARN' | 'ERROR' | 'DEBUG';
+
+function logger(level: LogLevel, context: string, message: string, data: any = null) {
+  const timestamp = new Date().toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo' });
+  const dataStr = data ? ` | ${typeof data === 'object' ? JSON.stringify(data) : data}` : '';
+  const logMessage = `[${timestamp}] [${level}] [${context}] ${message}${dataStr}`;
+  
+  if (level === 'ERROR') {
+    console.error(logMessage);
+  } else if (level === 'WARN') {
+    console.warn(logMessage);
+  } else {
+    // Em produção, podemos silenciar DEBUG se necessário
+    if (level === 'DEBUG' && process.env.NODE_ENV === 'production') return;
+    console.log(logMessage);
+  }
+}
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -22,6 +41,17 @@ const prisma = new PrismaClient({
   datasourceUrl: process.env.DATABASE_URL ? `${process.env.DATABASE_URL}${process.env.DATABASE_URL.includes('?') ? '&' : '?'}connection_limit=2&pool_timeout=20` : undefined
 });
 const app = express();
+
+// Request Logging Middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    logger('INFO', 'HTTP', `${req.method} ${req.originalUrl} - ${res.statusCode} (${duration}ms)`);
+  });
+  next();
+});
+
 const PORT = Number(process.env.PORT) || 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "fallback-secret";
 
@@ -59,12 +89,17 @@ const sendConfirmationEmail = async (email: string, token: string) => {
   };
 
   if (process.env.SMTP_HOST) {
-    await transporter.sendMail(mailOptions);
+    try {
+      await transporter.sendMail(mailOptions);
+      logger('INFO', 'EmailService', `E-mail de confirmação enviado para: ${email}`);
+    } catch (error: any) {
+      logger('ERROR', 'EmailService', `Erro ao enviar e-mail de confirmação para ${email}: ${error.message}`);
+    }
   } else {
-    console.log("------------------------------------------");
-    console.log("MOCK EMAIL SENT TO:", email);
-    console.log("CONFIRMATION LINK:", confirmLink);
-    console.log("------------------------------------------");
+    logger('INFO', 'EmailService', 'SMTP não configurado. Simulação de envio de e-mail.', {
+      to: email,
+      link: confirmLink
+    });
   }
 };
 
@@ -93,12 +128,17 @@ const sendResetPasswordEmail = async (email: string, token: string) => {
   };
 
   if (process.env.SMTP_HOST) {
-    await transporter.sendMail(mailOptions);
+    try {
+      await transporter.sendMail(mailOptions);
+      logger('INFO', 'EmailService', `E-mail de recuperação enviado para: ${email}`);
+    } catch (error: any) {
+      logger('ERROR', 'EmailService', `Erro ao enviar e-mail de recuperação para ${email}: ${error.message}`);
+    }
   } else {
-    console.log("------------------------------------------");
-    console.log("MOCK RESET EMAIL SENT TO:", email);
-    console.log("RESET LINK:", resetLink);
-    console.log("------------------------------------------");
+    logger('INFO', 'EmailService', 'SMTP não configurado. Simulação de envio de e-mail de recuperação.', {
+      to: email,
+      link: resetLink
+    });
   }
 };
 
@@ -130,18 +170,22 @@ const isAdmin = (req: any, res: Response, next: NextFunction) => {
 // Auth Routes
 app.post("/api/auth/login", async (req, res) => {
   const { email, password } = req.body;
+  logger('DEBUG', 'Auth', `Tentativa de login para: ${email}`);
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
+      logger('WARN', 'Auth', `Login falhou: Usuário não encontrado (${email})`);
       return res.status(401).json({ error: "Usuário não encontrado" });
     }
 
     if (user.status === UserStatus.pendente || !user.ativo) {
+      logger('WARN', 'Auth', `Login falhou: Conta não ativada (${email})`);
       return res.status(401).json({ error: "Sua conta ainda não foi ativada. Verifique seu e-mail." });
     }
 
     const validPassword = await bcrypt.compare(password, user.password);
     if (!validPassword) {
+      logger('WARN', 'Auth', `Login falhou: Senha incorreta (${email})`);
       return res.status(401).json({ error: "Senha incorreta" });
     }
 
@@ -151,6 +195,7 @@ app.post("/api/auth/login", async (req, res) => {
       { expiresIn: "1d" }
     );
 
+    logger('INFO', 'Auth', `Login bem-sucedido: ${email} (ID: ${user.id})`);
     res.json({
       token,
       user: { 
@@ -162,16 +207,19 @@ app.post("/api/auth/login", async (req, res) => {
         notificacaoEmail: user.notificacaoEmail
       },
     });
-  } catch (error) {
+  } catch (error: any) {
+    logger('ERROR', 'Auth', `Erro no processo de login para ${email}: ${error.message}`);
     res.status(500).json({ error: "Erro no login" });
   }
 });
 
 app.post("/api/auth/register", async (req, res) => {
   const { nome, email, password } = req.body;
+  logger('DEBUG', 'Auth', `Tentativa de registro para: ${email}`);
   try {
     const existingUser = await prisma.user.findUnique({ where: { email } });
     if (existingUser) {
+      logger('WARN', 'Auth', `Registro falhou: E-mail já cadastrado (${email})`);
       return res.status(400).json({ error: "E-mail já cadastrado" });
     }
 
@@ -180,7 +228,7 @@ app.post("/api/auth/register", async (req, res) => {
     const expires = new Date();
     expires.setHours(expires.getHours() + 24);
 
-    await prisma.user.create({
+    const newUser = await prisma.user.create({
       data: {
         nome,
         email,
@@ -193,11 +241,12 @@ app.post("/api/auth/register", async (req, res) => {
       },
     });
 
+    logger('INFO', 'Auth', `Novo usuário registrado: ${email} (ID: ${newUser.id})`);
     await sendConfirmationEmail(email, token);
 
     res.status(201).json({ message: "Cadastro realizado! Verifique seu e-mail para ativar sua conta." });
-  } catch (error) {
-    console.error("Erro no registro:", error);
+  } catch (error: any) {
+    logger('ERROR', 'Auth', `Erro no registro de usuário (${email}): ${error.message}`);
     res.status(500).json({ error: "Erro ao realizar cadastro" });
   }
 });
@@ -258,6 +307,7 @@ app.post("/api/auth/reenviar-confirmacao", async (req, res) => {
 
 app.post("/api/auth/esqueci-senha", async (req, res) => {
   const { email } = req.body;
+  logger('DEBUG', 'Auth', `Solicitação de recuperação de senha para: ${email}`);
   try {
     const user = await prisma.user.findUnique({ where: { email } });
     
@@ -265,6 +315,7 @@ app.post("/api/auth/esqueci-senha", async (req, res) => {
     const genericMessage = "Se o e-mail estiver cadastrado, você receberá um link de recuperação.";
     
     if (!user) {
+      logger('INFO', 'Auth', `Recuperação de senha: E-mail não encontrado (${email})`);
       return res.json({ message: genericMessage });
     }
 
@@ -280,24 +331,28 @@ app.post("/api/auth/esqueci-senha", async (req, res) => {
       },
     });
 
+    logger('INFO', 'Auth', `Token de recuperação gerado para: ${email}`);
     await sendResetPasswordEmail(email, token);
     res.json({ message: genericMessage });
-  } catch (error) {
-    console.error("Erro no esqueci-senha:", error);
+  } catch (error: any) {
+    logger('ERROR', 'Auth', `Erro no esqueci-senha para ${email}: ${error.message}`);
     res.status(500).json({ error: "Erro ao processar solicitação" });
   }
 });
 
 app.post("/api/auth/redefinir-senha", async (req, res) => {
   const { token, password } = req.body;
+  logger('DEBUG', 'Auth', 'Tentativa de redefinição de senha com token');
   try {
     const user = await prisma.user.findUnique({ where: { resetToken: token } });
     
     if (!user) {
+      logger('WARN', 'Auth', 'Redefinição de senha falhou: Token inválido');
       return res.status(400).json({ error: "Token de recuperação inválido ou já utilizado." });
     }
 
     if (user.resetTokenExpiracao && new Date() > user.resetTokenExpiracao) {
+      logger('WARN', 'Auth', `Redefinição de senha falhou: Token expirado (${user.email})`);
       return res.status(400).json({ error: "Este link de recuperação expirou. Por favor, solicite um novo." });
     }
 
@@ -312,20 +367,24 @@ app.post("/api/auth/redefinir-senha", async (req, res) => {
       },
     });
 
+    logger('INFO', 'Auth', `Senha redefinida com sucesso para: ${user.email}`);
     res.json({ message: "Senha alterada com sucesso!" });
-  } catch (error) {
+  } catch (error: any) {
+    logger('ERROR', 'Auth', `Erro ao redefinir senha: ${error.message}`);
     res.status(500).json({ error: "Erro ao redefinir senha" });
   }
 });
 
 // User Management (Admin only)
 app.get("/api/users", authenticateToken, isAdmin, async (req, res) => {
+  logger('DEBUG', 'User', 'Buscando todos os usuários');
   try {
     const users = await prisma.user.findMany({
       select: { id: true, email: true, nome: true, role: true, ativo: true, dataNascimento: true },
     });
     res.json(users);
-  } catch (error) {
+  } catch (error: any) {
+    logger('ERROR', 'User', `Erro ao buscar usuários: ${error.message}`);
     res.status(500).json({ error: "Erro ao buscar usuários" });
   }
 });
@@ -439,9 +498,9 @@ app.get("/api/compromissos", authenticateToken, async (req: any, res) => {
 });
 
 app.post("/api/compromissos", authenticateToken, async (req: any, res) => {
+  const userId = req.user.id;
   try {
     const { titulo, descricao, data, hora, retroativo } = req.body;
-    const userId = req.user.id;
 
     const novoCompromisso = await prisma.compromisso.create({
       data: {
@@ -453,8 +512,10 @@ app.post("/api/compromissos", authenticateToken, async (req: any, res) => {
         userId,
       },
     });
+    logger('INFO', 'Compromisso', `Compromisso criado com sucesso (ID: ${novoCompromisso.id})`);
     res.status(201).json(novoCompromisso);
-  } catch (error) {
+  } catch (error: any) {
+    logger('ERROR', 'Compromisso', `Erro ao criar compromisso para usuário ${userId}: ${error.message}`);
     res.status(500).json({ error: "Erro ao criar compromisso" });
   }
 });
@@ -486,8 +547,10 @@ app.put("/api/compromissos/:id", authenticateToken, async (req: any, res) => {
         retroativo: retroativo !== undefined ? !!retroativo : undefined,
       },
     });
+    logger('INFO', 'Compromisso', `Compromisso atualizado (ID: ${id})`);
     res.json(updated);
-  } catch (error) {
+  } catch (error: any) {
+    logger('ERROR', 'Compromisso', `Erro ao atualizar compromisso ${req.params.id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao atualizar compromisso" });
   }
 });
@@ -503,8 +566,10 @@ app.delete("/api/compromissos/:id", authenticateToken, async (req: any, res) => 
     }
 
     await prisma.compromisso.delete({ where: { id: parseInt(id) } });
+    logger('INFO', 'Compromisso', `Compromisso excluído (ID: ${id})`);
     res.status(204).send();
-  } catch (error) {
+  } catch (error: any) {
+    logger('ERROR', 'Compromisso', `Erro ao excluir compromisso ${req.params.id}: ${error.message}`);
     res.status(500).json({ error: "Erro ao excluir compromisso" });
   }
 });
@@ -530,10 +595,10 @@ app.patch("/api/compromissos/:id/concluir", authenticateToken, async (req: any, 
 });
 
 app.get("/api/relatorios", authenticateToken, async (req: any, res) => {
+  const { dataInicio, dataFim, userId: filterUserId, status } = req.query;
+  const { role, id: userId } = req.user;
+  logger('DEBUG', 'Relatorio', `Gerando relatório para usuário ${userId}`, { dataInicio, dataFim, filterUserId, status });
   try {
-    const { dataInicio, dataFim, userId: filterUserId, status } = req.query;
-    const { role, id: userId } = req.user;
-    
     let where: any = role === "administrador" ? {} : { userId };
     
     if (role === "administrador" && filterUserId) {
@@ -562,10 +627,10 @@ app.get("/api/relatorios", authenticateToken, async (req: any, res) => {
 });
 
 app.get("/api/dashboard", authenticateToken, async (req: any, res) => {
+  const { userId: filterUserId } = req.query;
+  const { role, id: userId } = req.user;
+  logger('DEBUG', 'Dashboard', `Buscando dados do dashboard para usuário ${userId}`, { filterUserId });
   try {
-    const { userId: filterUserId } = req.query;
-    const { role, id: userId } = req.user;
-    
     let where: any = role === "administrador" ? {} : { userId };
     
     if (role === "administrador" && filterUserId) {
@@ -610,13 +675,13 @@ async function seedAdmin() {
         ativo: true
       },
     });
-    console.log("Admin user seeded: test@segnorte.com.br / test123");
+    logger('INFO', 'Admin', "Admin user seeded: test@segnorte.com.br / test123");
   }
 }
 
 // Cron Job para Lembretes de E-mail (executa a cada minuto)
 cron.schedule("* * * * *", async () => {
-  console.log("Checking for upcoming appointments to send reminders...");
+  logger('DEBUG', 'Cron', "Iniciando verificação de compromissos para lembretes...");
   try {
     const now = new Date();
     const oneHourFromNow = addHours(now, 1);
@@ -653,7 +718,7 @@ cron.schedule("* * * * *", async () => {
 
       // Se estiver entre 55 e 65 minutos de distância
       if (diffMinutes >= 55 && diffMinutes <= 65) {
-        console.log(`Sending reminder to ${appo.user.email} for appointment ${appo.titulo}`);
+        logger('INFO', 'Cron', `Enviando lembrete para ${appo.user.email} (Compromisso: ${appo.titulo})`);
         
         const mailOptions = {
           from: `"SegAgenda" <${process.env.SMTP_USER}>`,
@@ -676,8 +741,9 @@ cron.schedule("* * * * *", async () => {
         try {
           if (process.env.SMTP_HOST) {
             await transporter.sendMail(mailOptions);
+            logger('INFO', 'Cron', `E-mail de lembrete enviado para: ${appo.user.email}`);
           } else {
-            console.log("MOCK REMINDER SENT TO:", appo.user.email);
+            logger('INFO', 'Cron', `MOCK REMINDER SENT TO: ${appo.user.email}`);
           }
 
           await prisma.compromisso.update({
@@ -687,13 +753,13 @@ cron.schedule("* * * * *", async () => {
               dataNotificacaoEmail: new Date()
             }
           });
-        } catch (mailError) {
-          console.error(`Failed to send reminder to ${appo.user.email}:`, mailError);
+        } catch (mailError: any) {
+          logger('ERROR', 'Cron', `Falha ao enviar lembrete para ${appo.user.email}: ${mailError.message}`);
         }
       }
     }
-  } catch (error) {
-    console.error("Error in reminder cron job:", error);
+  } catch (error: any) {
+    logger('ERROR', 'Cron', `Erro no cron job de lembretes: ${error.message}`);
   }
 });
 

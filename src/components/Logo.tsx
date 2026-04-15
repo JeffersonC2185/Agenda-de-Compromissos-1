@@ -3,7 +3,7 @@ import React from 'react';
 export default function Logo({ className = "h-8" }: { className?: string }) {
   return (
     <div className={`flex items-center gap-2 ${className}`}>
-      <svg viewBox="0 0 100 100" className="h-full w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <svg viewBox="0 0 100 100" className="h-full w-auto calendar-icon-animated" fill="none" xmlns="http://www.w3.org/2000/svg">
         {/* Calendar Body */}
         <rect x="10" y="20" width="80" height="70" rx="10" fill="#00a650" />
         {/* Calendar Top Rings */}

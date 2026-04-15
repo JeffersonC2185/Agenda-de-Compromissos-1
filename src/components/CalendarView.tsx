@@ -153,10 +153,6 @@ export default function CalendarView() {
         toast.info(`Compromisso Próximo: "${c.titulo}" começa em ${diffMinutes} minutos!`, {
           icon: <Bell className="h-4 w-4 text-primary" />,
           duration: 10000,
-          action: {
-            label: 'Fechar',
-            onClick: () => {}
-          }
         });
         newNotifiedIds.add(c.id);
         hasNewNotification = true;
@@ -164,10 +160,6 @@ export default function CalendarView() {
         // Only notify about "today" once at the start of the day or when fetched
         toast(`Lembrete: Você tem "${c.titulo}" hoje às ${c.hora}`, {
           icon: <CalendarIcon className="h-4 w-4 text-orange-500" />,
-          action: {
-            label: 'Fechar',
-            onClick: () => {}
-          }
         });
         newNotifiedIds.add(c.id);
         hasNewNotification = true;

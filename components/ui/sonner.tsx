@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
-import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { CheckCircle2, Info, AlertTriangle, XCircle, Loader2 } from "lucide-react"
 
 const Toaster = ({ ...props }: ToasterProps) => {
   const { theme = "system" } = useTheme()
@@ -12,35 +12,26 @@ const Toaster = ({ ...props }: ToasterProps) => {
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
       icons={{
-        success: (
-          <CircleCheckIcon className="size-4" />
-        ),
-        info: (
-          <InfoIcon className="size-4" />
-        ),
-        warning: (
-          <TriangleAlertIcon className="size-4" />
-        ),
-        error: (
-          <OctagonXIcon className="size-4" />
-        ),
-        loading: (
-          <Loader2Icon className="size-4 animate-spin" />
-        ),
+        success: <CheckCircle2 className="size-5 text-emerald-500" />,
+        info: <Info className="size-5 text-sky-500" />,
+        warning: <AlertTriangle className="size-5 text-amber-500" />,
+        error: <XCircle className="size-5 text-rose-500" />,
+        loading: <Loader2 className="size-5 animate-spin text-primary" />,
       }}
-      style={
-        {
-          "--normal-bg": "var(--popover)",
-          "--normal-text": "var(--popover-foreground)",
-          "--normal-border": "var(--border)",
-          "--border-radius": "var(--radius)",
-        } as React.CSSProperties
-      }
       toastOptions={{
         classNames: {
-          toast: "cn-toast",
+          toast: "cn-toast group",
+          success: "cn-toast-success",
+          error: "cn-toast-error",
+          warning: "cn-toast-warning",
+          info: "cn-toast-info",
+          title: "data-title",
+          description: "data-description",
+          closeButton: "data-close-button",
         },
       }}
+      closeButton
+      richColors={false}
       {...props}
     />
   )

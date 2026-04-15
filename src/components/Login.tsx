@@ -9,18 +9,21 @@ import { motion } from 'motion/react';
 import { LogIn, UserPlus, Mail, KeyRound } from 'lucide-react';
 import Logo from './Logo';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface LoginProps {
   onLogin: (user: any, token: string) => void;
+  onShowLegal: () => void;
 }
 
-export default function Login({ onLogin }: LoginProps) {
+export default function Login({ onLogin, onShowLegal }: LoginProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [isRegisterOpen, setIsRegisterOpen] = useState(false);
   const [registerData, setRegisterData] = useState({ nome: '', email: '', password: '', confirmPassword: '' });
   const [registerLoading, setRegisterLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [showResend, setShowResend] = useState(false);
   const [isForgotOpen, setIsForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
@@ -36,10 +39,14 @@ export default function Login({ onLogin }: LoginProps) {
       localStorage.setItem('token', token);
       localStorage.setItem('user', JSON.stringify(user));
       onLogin(user, token);
-      toast.success(`Bem-vindo, ${user.nome}!`);
+      toast.success('Login realizado!', { 
+        description: `Bem-vindo de volta, ${user.nome}!` 
+      });
     } catch (error: any) {
       const errorMsg = error.response?.data?.error || 'Erro ao fazer login';
-      toast.error(errorMsg);
+      toast.error('Falha no acesso', { 
+        description: errorMsg 
+      });
       if (errorMsg.includes('ativada')) {
         setShowResend(true);
       }
@@ -50,6 +57,9 @@ export default function Login({ onLogin }: LoginProps) {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!agreedToTerms) {
+      return toast.error('Você precisa concordar com os termos de uso');
+    }
     if (registerData.password !== registerData.confirmPassword) {
       return toast.error('As senhas não coincidem');
     }
@@ -64,11 +74,16 @@ export default function Login({ onLogin }: LoginProps) {
         email: registerData.email,
         password: registerData.password
       });
-      toast.success(response.data.message, { duration: 10000 });
+      toast.success('Cadastro realizado!', { 
+        description: response.data.message,
+        duration: 10000 
+      });
       setIsRegisterOpen(false);
       setRegisterData({ nome: '', email: '', password: '', confirmPassword: '' });
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Erro ao realizar cadastro');
+      toast.error('Erro no cadastro', { 
+        description: error.response?.data?.error || 'Não foi possível completar seu registro.' 
+      });
     } finally {
       setRegisterLoading(false);
     }
@@ -78,10 +93,14 @@ export default function Login({ onLogin }: LoginProps) {
     if (!email) return toast.error('Informe seu e-mail para reenviar a confirmação');
     try {
       await api.post('/auth/reenviar-confirmacao', { email });
-      toast.success('E-mail de confirmação reenviado!');
+      toast.success('E-mail enviado', { 
+        description: 'Verifique sua caixa de entrada para confirmar sua conta.' 
+      });
       setShowResend(false);
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Erro ao reenviar e-mail');
+      toast.error('Erro no envio', { 
+        description: error.response?.data?.error || 'Não foi possível reenviar o e-mail.' 
+      });
     }
   };
 
@@ -90,11 +109,15 @@ export default function Login({ onLogin }: LoginProps) {
     setForgotLoading(true);
     try {
       const response = await api.post('/auth/esqueci-senha', { email: forgotEmail });
-      toast.success(response.data.message);
+      toast.success('Solicitação enviada', { 
+        description: response.data.message 
+      });
       setIsForgotOpen(false);
       setForgotEmail('');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Erro ao processar solicitação');
+      toast.error('Erro na solicitação', { 
+        description: error.response?.data?.error || 'Não foi possível processar seu pedido.' 
+      });
     } finally {
       setForgotLoading(false);
     }
@@ -231,6 +254,28 @@ export default function Login({ onLogin }: LoginProps) {
                         required
                       />
                     </div>
+                    <div className="flex items-start space-x-2 py-2">
+                      <Checkbox 
+                        id="terms" 
+                        checked={agreedToTerms} 
+                        onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)} 
+                      />
+                      <div className="grid gap-1.5 leading-none">
+                        <label
+                          htmlFor="terms"
+                          className="text-xs font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+                        >
+                          Li e concordo com os{' '}
+                          <button 
+                            type="button"
+                            onClick={onShowLegal}
+                            className="text-primary hover:underline font-bold"
+                          >
+                            Termos de Uso e Política de Privacidade
+                          </button>
+                        </label>
+                      </div>
+                    </div>
                     <Button type="submit" className="w-full" disabled={registerLoading}>
                       {registerLoading ? 'Cadastrando...' : 'Cadastrar'}
                     </Button>
@@ -254,6 +299,15 @@ export default function Login({ onLogin }: LoginProps) {
               <p className="font-bold mb-1">Acesso de demonstração:</p>
               <p>E-mail: test@segnorte.com.br</p>
               <p>Senha: test123</p>
+            </div>
+
+            <div className="mt-4 text-center">
+              <button 
+                onClick={onShowLegal}
+                className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+              >
+                Política de Privacidade & Termos de Uso
+              </button>
             </div>
           </CardContent>
         </Card>
