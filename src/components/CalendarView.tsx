@@ -39,6 +39,8 @@ export default function CalendarView() {
   const [isRetroactiveModalOpen, setIsRetroactiveModalOpen] = useState(false);
   const [pendingAppointmentData, setPendingAppointmentData] = useState<Partial<Compromisso> | null>(null);
   const [isYearModalOpen, setIsYearModalOpen] = useState(false);
+  const [isSpecialEventModalOpen, setIsSpecialEventModalOpen] = useState(false);
+  const [specialEventData, setSpecialEventData] = useState<{ title: string; date: string; type: 'birthday' | 'holiday'; description?: string } | null>(null);
   const [currentCalendarYear, setCurrentCalendarYear] = useState(new Date().getFullYear());
   const [notifiedIds, setNotifiedIds] = useState<Set<number>>(new Set());
   const [birthdays, setBirthdays] = useState<any[]>([]);
@@ -209,12 +211,23 @@ export default function CalendarView() {
 
   const handleEventClick = (arg: any) => {
     if (arg.event.extendedProps.isHoliday) {
+      setSpecialEventData({
+        title: arg.event.title,
+        date: format(new Date(arg.event.start), 'dd/MM/yyyy'),
+        type: 'holiday',
+        description: 'Feriado Nacional no Brasil'
+      });
+      setIsSpecialEventModalOpen(true);
       return;
     }
     if (arg.event.extendedProps.isBirthday) {
-      toast.info(`Hoje é aniversário de ${arg.event.extendedProps.userName}! 🎂`, {
-        icon: <Cake className="h-4 w-4 text-pink-500" />
+      setSpecialEventData({
+        title: arg.event.title,
+        date: format(new Date(arg.event.start), 'dd/MM/yyyy'),
+        type: 'birthday',
+        description: `Hoje celebramos o aniversário de ${arg.event.extendedProps.userName}! 🎂`
       });
+      setIsSpecialEventModalOpen(true);
       return;
     }
     setCurrentAppointment(arg.event.extendedProps);
@@ -554,6 +567,34 @@ export default function CalendarView() {
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        {/* Special Event Modal (Birthday/Holiday) */}
+        <Dialog open={isSpecialEventModalOpen} onOpenChange={setIsSpecialEventModalOpen}>
+          <DialogContent className="max-w-[95vw] sm:max-w-[400px]">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                {specialEventData?.type === 'birthday' ? (
+                  <Cake className="h-5 w-5 text-pink-500" />
+                ) : (
+                  <CalendarIcon className="h-5 w-5 text-slate-500" />
+                )}
+                {specialEventData?.type === 'birthday' ? 'Aniversário' : 'Feriado'}
+              </DialogTitle>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+              <div>
+                <h3 className="text-lg font-bold text-foreground">{specialEventData?.title}</h3>
+                <p className="text-sm text-muted-foreground">{specialEventData?.date}</p>
+              </div>
+              <div className="p-3 bg-muted rounded-md border border-border">
+                <p className="text-sm leading-relaxed">{specialEventData?.description}</p>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={() => setIsSpecialEventModalOpen(false)}>Fechar</Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
